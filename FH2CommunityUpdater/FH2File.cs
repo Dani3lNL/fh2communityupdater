@@ -1,9 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Security.Cryptography;
 
@@ -17,10 +15,9 @@ namespace FH2CommunityUpdater
         public string target { get; set; }
         public long size { get; set; }
         public string checksum { get; set; }
-        public string source { get; set; }
         public string fullPath { get; set; }
 
-        public void Client( string fileName, string rootFolder, string webRoot )
+        public void Client( string fileName, string rootFolder )
         {
             if (File.Exists(fileName))
             {
@@ -28,14 +25,13 @@ namespace FH2CommunityUpdater
                 string folder = file.DirectoryName.ToLower();
                 this.name = file.Name;
                 this.size = file.Length;
-                while (!folder.StartsWith(rootFolder))
+                while (!folder.StartsWith(rootFolder + Path.DirectorySeparatorChar))
                 {
                     folder = folder.Substring(1);
                 }
                 this.target = folder;
                 this.fullPath = folder + "\\" + this.name;
-                this.source = webRoot + "/" + this.fullPath.Replace("\\", "/");
-                this.checksum = this.getChecksum(fileName);
+                this.checksum = this.getChecksum(fileName).ToLower();
             }
             else
             {
@@ -44,14 +40,23 @@ namespace FH2CommunityUpdater
             }
         }
 
-        public void Server(string name, string target, string fullPath, long size, string checksum, string source)
+        public void Server(string name, string target, string fullPath, long size, string checksum)
         {
             this.name = name;
             this.target = target;
-            this.fullPath = this.target + "\\" + this.name;
+            this.fullPath = Path.Combine(this.target, this.name);
             this.size = size;
-            this.checksum = checksum;
-            this.source = source;
+            this.checksum = checksum.ToLower();
+        }
+
+        public FH2File Clone()
+        {
+            FH2File clonedFile = new FH2File();
+            clonedFile.name = this.name;
+            clonedFile.target = this.target;
+            clonedFile.checksum = this.checksum;
+            clonedFile.fullPath = this.fullPath;
+            return clonedFile;
         }
 
         public bool Compare (FH2File other)
@@ -62,7 +67,7 @@ namespace FH2CommunityUpdater
                 return false;
             else if (this.size != other.size)
                 return false;
-            else if (this.checksum != other.checksum)
+            else if (this.checksum.ToLower() != other.checksum.ToLower())
                 return false;
             else
                 return true;
@@ -72,7 +77,7 @@ namespace FH2CommunityUpdater
         {
             using (var md5 = MD5.Create())
             {
-                using (var stream = new BufferedStream(File.OpenRead(fileName), 1200000))
+                using (var stream = new BufferedStream(File.OpenRead(fileName), 120000))
                 {
                     return BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", "").ToLower();
                 }

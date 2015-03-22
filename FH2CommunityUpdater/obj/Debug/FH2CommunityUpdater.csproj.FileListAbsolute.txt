@@ -1,11 +1,13 @@
 c:\users\lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\bin\Debug\FH2CommunityUpdater.exe
 c:\users\lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\bin\Debug\FH2CommunityUpdater.pdb
-c:\users\lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.csprojResolveAssemblyReference.cache
 c:\users\lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.Properties.Resources.resources
 c:\users\lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.csproj.GenerateResource.Cache
 c:\users\lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.exe
 c:\users\lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.pdb
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.MainWindow.resources
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.PWCheck.resources
-C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.Updater.resources
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.SettingsWindow.resources
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.SelfUpdateWindow.resources
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.csprojResolveAssemblyReference.cache
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\bin\Debug\FH2CommunityUpdater.exe.config
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.UpdateWindow.resources

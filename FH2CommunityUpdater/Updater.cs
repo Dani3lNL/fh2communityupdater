@@ -25,27 +25,96 @@ namespace FH2CommunityUpdater
         public double avgspeed = 0.0;
         public long speedsum = 0;
         public long initialSize = 0;
+        public int workerProgress = 0;
         public double lastMinute = -10000;
+        private bool firstRun = true;
         public List<long> speeds = new List<long>();
+        public MainWindow parent;
 
 
         public delegate void UpdaterStatusHandler(object sender, ProgressEventArgs e);
         public event UpdaterStatusHandler OnUpdateStatus;
 
 
-        public Updater( List<ContentClass> toUpdate )
+        public Updater(List<ContentClass> toUpdate, MainWindow parent)
         {
             InitializeComponent();
             this.toUpdate = toUpdate;
+            this.parent = parent;
+        }
 
+
+
+        public void init()
+        {
+            this.workerProgress = 0;
+            BackgroundWorker worker = new BackgroundWorker();
+            worker.DoWork += new DoWorkEventHandler(
+            delegate(object o, DoWorkEventArgs args)
+            {
+                foreach (ContentClass addon in toUpdate)
+                {
+                    Console.WriteLine(addon.name);
+                    addon.OnUpdateStatus += addon_OnUpdateStatus;
+                    addon.init();
+                }
+            });
+            worker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(
+            delegate(object o, RunWorkerCompletedEventArgs args)
+            {
+                afterInit();
+                worker.Dispose();
+            });
+            worker.RunWorkerAsync();
+        }
+
+        void addon_OnUpdateStatus(object sender, MD5CheckEventArgs e)
+        {
+            double progress = e.Progress;
+            this.workerProgress += (int)(e.Progress * 100);
+            SetPreInfo(this.workerProgress / this.toUpdate.Count);
+        }
+
+        private void SetPreInfo(int progress)
+        {
+            if (this.progressBar1.InvokeRequired)
+            {
+                SetPreInfoCallback d = new SetPreInfoCallback(SetPreInfo);
+                this.Invoke(d, new object[] { progress });
+            }
+            else
+            {
+                this.progressBar1.Maximum = 100;
+                this.progressBar1.Value = progress;
+                Console.WriteLine(progress);
+            }
+        }
+        delegate void SetPreInfoCallback(int progress);
+
+        public void afterInit()
+        {
             List<TorrentTarget> torrentTargets = new List<TorrentTarget>();
+            this.toDownload.Clear();
             foreach (ContentClass addon in toUpdate)
             {
                 TorrentTarget torrent = new TorrentTarget(addon.ID.ToString(), addon.torrent);
                 torrentTargets.Add(torrent);
-                addon.init();
                 if (addon.obsoleteFiles.Count != 0)
                     this.toDownload.AddRange(addon.obsoleteFiles);
+                if (!this.firstRun)
+                {
+                    MessageBox.Show(toDownload.Count.ToString() + " Files didn't check out and should be redownloaded.");
+                    this.Dispose();
+                    return;
+                }
+            }
+
+            if (this.toDownload.Count == 0)
+            {
+                MessageBox.Show("Selected content is up to date.");
+                this.Dispose();
+                Console.WriteLine("Stop all good");
+                return;
             }
 
             BackgroundWorker torrentDL = new BackgroundWorker();
@@ -59,7 +128,7 @@ namespace FH2CommunityUpdater
             torrentDL.RunWorkerCompleted += new RunWorkerCompletedEventHandler(
             delegate(object o, RunWorkerCompletedEventArgs args)
             {
-                Console.WriteLine("FInished Downloading torrents");
+                Console.WriteLine("Finished Downloading torrents");
                 startUpdate();
                 torrentDL.Dispose();
             });
@@ -91,8 +160,9 @@ namespace FH2CommunityUpdater
                     unit = "MB";
                 }
                 speed = (int)speed;
-                progressBar1.Maximum = 100;
-                progressBar1.Value = (int)e.Progress;
+                progressBar1.Maximum = 100*1024;
+                if (((int)e.Progress > 0)&&((int)e.Progress <= 100))
+                    progressBar1.Value = (int)(e.Progress*1024);
 
                 long remaining;
                 long total = TorrentEngine.totalSize;
@@ -122,35 +192,78 @@ namespace FH2CommunityUpdater
 
                 double timeRemaining = (double)remaining / this.avgspeed;
 
-
-
-                string timeUnit1 = "seconds";
-
                 bool skipTime = false;
-                double minutesRemaining = timeRemaining / 60.0;
+                double unitsRemaining;
+                string timeUnit;
+
+                if (timeRemaining > 60)
+                {
+                    unitsRemaining = timeRemaining / 60.0;
+                    timeUnit = "minutes";
+                }
+                else
+                {
+                    unitsRemaining = timeRemaining;
+                    timeUnit = "seconds";
+                }
+
                 if (this.lastMinute == -10000)
                 {
                     this.label2.Text = "";
-                    this.lastMinute = minutesRemaining;
+                    this.lastMinute = unitsRemaining;
                     skipTime = true;
                 }
                 else
                 {
-                    if (Math.Abs((this.lastMinute - minutesRemaining)) > 1.1)
+                    if ((Math.Abs((this.lastMinute - unitsRemaining)) > 1.1)&&(timeRemaining > 60))
                         skipTime = true;
                 }
-                this.lastMinute = minutesRemaining;
-                if ((minutesRemaining < 0.0)||(minutesRemaining > 1000000))
+                this.lastMinute = unitsRemaining;
+                if ((unitsRemaining < 0.0)||(unitsRemaining > 1000000))
                     skipTime = true;
 
-                string timeUnit2 = "minutes";
-                double secondsRemaining = (timeRemaining - (int)minutesRemaining * 60);
+                if ((e.DownloadSpeed == 0) && (e.Progress == 100))
+                {
+                    Console.WriteLine("Finished.");
+                    this.firstRun = false;
+                    this.TorrentEngine.engine.StopAll();
+                    this.TorrentEngine.OnUpdateStatus -= TorrentEngine_OnUpdateStatus;
+                    this.torrentWorker.CancelAsync();
+                    this.init();
+                    unitsRemaining = 0;
+                }
+
+                double size = (double)this.TorrentEngine.totalSize;
+                string sizeUnit = "B";
+                if (size > 1024)
+                {
+                    size /= 1024;
+                    sizeUnit = "KB";
+                }
+                if (size > 1024)
+                {
+                    size /= 1024;
+                    sizeUnit = "MB";
+                }
+                if (size > 1024)
+                {
+                    size /= 1024;
+                    sizeUnit = "GB";
+                }
 
                 if (!this.Paused)
                 {
-                    this.label1.Text = "Downloading from " + e.Seeds.ToString() + " Peers at " + speed.ToString() + unit + "/s (" + ((int)e.Progress).ToString() + "% completed)";
-                    if (!skipTime)
-                        this.label2.Text = "Approximately " + ((int)minutesRemaining).ToString() + " " + timeUnit2 + /**" and " + ((int)secondsRemaining).ToString() + " " + timeUnit1 + **/ " remaining.";
+                    if ((e.DownloadSpeed == 0) && (e.Progress != 100) && (e.Progress != 0))
+                        this.label1.Text = "Resuming prior torrent download.";
+                    else
+                    {
+                        this.label1.Text = "Downloading " + string.Format("{0:0.###}", size) + sizeUnit + " from " + e.Seeds.ToString() + " seeds at " + speed.ToString() + unit + "/s (" + ((int)e.Progress).ToString() + "% completed)";
+                        this.button1.Enabled = true;
+                        if (!skipTime)
+                        {
+                            this.label2.Text = "Approximately " + ((int)unitsRemaining).ToString() + " " + timeUnit + " remaining.";
+                        }
+                    }
                 }
             }
         }
@@ -161,6 +274,7 @@ namespace FH2CommunityUpdater
         {
             BackgroundWorker torrentWorker = new BackgroundWorker();
             torrentWorker.WorkerReportsProgress = true;
+            torrentWorker.WorkerSupportsCancellation = true;
             this.torrentWorker = torrentWorker;
 
             torrentWorker.DoWork += new DoWorkEventHandler(
@@ -236,6 +350,18 @@ namespace FH2CommunityUpdater
                 this.button1.Text = "Pause";
                 this.Paused = false;
             }
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            this.Visible = false;
+            this.parent.button2.Enabled = false;
+            this.parent.button3.Enabled = false;
         }
            
 

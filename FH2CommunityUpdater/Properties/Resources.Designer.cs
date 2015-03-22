@@ -59,5 +59,15 @@ namespace FH2CommunityUpdater.Properties {
                 resourceCulture = value;
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] fh2communityupdaterselfupdate {
+            get {
+                object obj = ResourceManager.GetObject("fh2communityupdaterselfupdate", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
     }
 }

@@ -1,0 +1,16 @@
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\bin\Release\FH2CommunityUpdater.exe
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\bin\Release\FH2CommunityUpdater.pdb
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\bin\Release\Mono.Nat.dll
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\bin\Release\MonoTorrent.Dht.dll
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\bin\Release\MonoTorrent.dll
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.MainWindow.resources
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.SelfUpdateWindow.resources
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.SettingsWindow.resources
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.Properties.Resources.resources
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.PWCheck.resources
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.Updater.resources
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.csproj.GenerateResource.Cache
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.exe
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.pdb
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.csprojResolveAssemblyReference.cache
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\bin\Release\FH2CommunityUpdater.exe.config

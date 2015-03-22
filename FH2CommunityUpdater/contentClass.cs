@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Net;
@@ -23,13 +24,28 @@ namespace FH2CommunityUpdater
         internal string password = null;
         internal string webRoot = "temp";
         internal bool hasDirectDL = false;
+        internal long totalSize;
         internal List<FH2File> fileIndex = new List<FH2File>();
         internal List<FH2File> localFiles = new List<FH2File>();
         internal List<FH2File> obsoleteFiles = new List<FH2File>();
 
+        public delegate void MD5CheckStatusHandler(object sender, MD5CheckEventArgs e);
+        public event MD5CheckStatusHandler OnUpdateStatus;
+
+        public void report(double progress)
+        {
+            // Make sure someone is listening to event
+            Console.WriteLine(progress);
+            if (OnUpdateStatus == null) return;
+            MD5CheckEventArgs args = new MD5CheckEventArgs(progress);
+            OnUpdateStatus(this, args);
+        }
 
         public void init()
         {
+            this.fileIndex.Clear();
+            this.localFiles.Clear();
+            this.obsoleteFiles.Clear();
             InitFileIndex();
             InitLocalFiles();
             compareFiles();
@@ -38,13 +54,28 @@ namespace FH2CommunityUpdater
 
         private bool InitLocalFiles()
         {
+            long dealtSize = 0;
             foreach (FH2File fh2File in this.fileIndex)
             {
                 FH2File localfile = clone(fh2File);
                 string fileName = fh2File.name;
                 string filePath = Path.Combine("..", "..", fh2File.target, fh2File.name);
                 localfile.Client(filePath, rootFolder, this.webRoot);
+                dealtSize += fh2File.size;
+                double Progress = dealtSize / this.totalSize;
                 localFiles.Add(localfile);
+                BackgroundWorker worker = new BackgroundWorker();
+                worker.DoWork += new DoWorkEventHandler(
+                delegate(object o, DoWorkEventArgs args)
+                {
+                    report(Progress);
+                });
+                worker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(
+                delegate(object o, RunWorkerCompletedEventArgs args)
+                {
+                    worker.Dispose();
+                });
+                worker.RunWorkerAsync();
             }
             return true;
         }
@@ -77,6 +108,7 @@ namespace FH2CommunityUpdater
 
         private bool InitFileIndex()
         {
+            this.totalSize = 0;
             XmlTextReader reader = new XmlTextReader(this.fileIndexURL);
             while (reader.Read())
             {
@@ -89,7 +121,9 @@ namespace FH2CommunityUpdater
                         fh2fileWeb.target = reader.GetAttribute("target");
                         fh2fileWeb.source = reader.GetAttribute("source");
                         fh2fileWeb.size = long.Parse(reader.GetAttribute("size"));
+                        this.totalSize += fh2fileWeb.size;
                         fh2fileWeb.checksum = reader.GetAttribute("checksum").ToUpper();
+                        fh2fileWeb.fullPath = Path.Combine(fh2fileWeb.target, fh2fileWeb.name);
                         this.fileIndex.Add(fh2fileWeb);
                     }
                 }
@@ -101,4 +135,16 @@ namespace FH2CommunityUpdater
         }
 
     }
+
+
+    public class MD5CheckEventArgs : EventArgs
+    {
+        public double Progress { get; private set; }
+
+        public MD5CheckEventArgs(double progress)
+        {
+            this.Progress = progress;
+        }
+    }
+
 }

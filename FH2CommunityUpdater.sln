@@ -5,6 +5,8 @@ VisualStudioVersion = 12.0.31101.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FH2CommunityUpdater", "FH2CommunityUpdater\FH2CommunityUpdater.csproj", "{D03D456C-1621-499A-9F0D-B7435934721B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FH2CommunityUpdaterSelfUpdate", "FH2CommunityUpdaterSelfUpdate\FH2CommunityUpdaterSelfUpdate.csproj", "{73918D4D-F3F7-43FE-B4B3-68EE401318F9}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{D03D456C-1621-499A-9F0D-B7435934721B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D03D456C-1621-499A-9F0D-B7435934721B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D03D456C-1621-499A-9F0D-B7435934721B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{73918D4D-F3F7-43FE-B4B3-68EE401318F9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{73918D4D-F3F7-43FE-B4B3-68EE401318F9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{73918D4D-F3F7-43FE-B4B3-68EE401318F9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{73918D4D-F3F7-43FE-B4B3-68EE401318F9}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

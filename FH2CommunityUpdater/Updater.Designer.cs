@@ -13,6 +13,8 @@
         /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
+            this.parent.button3.Enabled = true;
+            this.parent.button2.Enabled = true;
             if (disposing && (components != null))
             {
                 components.Dispose();
@@ -48,13 +50,14 @@
             this.label1.AutoSize = true;
             this.label1.Location = new System.Drawing.Point(9, 9);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(203, 13);
+            this.label1.Size = new System.Drawing.Size(107, 13);
             this.label1.TabIndex = 1;
-            this.label1.Text = "Downloading 0MB at 0KB/s from 0 peers.";
+            this.label1.Text = "Checking local files...";
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(58, 93);
+            this.button1.Enabled = false;
+            this.button1.Location = new System.Drawing.Point(63, 72);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(78, 25);
             this.button1.TabIndex = 3;
@@ -64,36 +67,37 @@
             // 
             // button2
             // 
-            this.button2.Location = new System.Drawing.Point(142, 93);
+            this.button2.Location = new System.Drawing.Point(147, 72);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(78, 25);
             this.button2.TabIndex = 4;
             this.button2.Text = "Cancel";
             this.button2.UseVisualStyleBackColor = true;
+            this.button2.Click += new System.EventHandler(this.button2_Click);
             // 
             // button3
             // 
-            this.button3.Location = new System.Drawing.Point(226, 93);
+            this.button3.Location = new System.Drawing.Point(231, 72);
             this.button3.Name = "button3";
             this.button3.Size = new System.Drawing.Size(78, 25);
             this.button3.TabIndex = 5;
             this.button3.Text = "Hide";
             this.button3.UseVisualStyleBackColor = true;
+            this.button3.Click += new System.EventHandler(this.button3_Click);
             // 
             // label2
             // 
             this.label2.AutoSize = true;
             this.label2.Location = new System.Drawing.Point(9, 54);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(203, 13);
+            this.label2.Size = new System.Drawing.Size(0, 13);
             this.label2.TabIndex = 6;
-            this.label2.Text = "Downloading 0MB at 0KB/s from 0 peers.";
             // 
             // Updater
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(370, 130);
+            this.ClientSize = new System.Drawing.Size(370, 109);
             this.ControlBox = false;
             this.Controls.Add(this.label2);
             this.Controls.Add(this.button3);

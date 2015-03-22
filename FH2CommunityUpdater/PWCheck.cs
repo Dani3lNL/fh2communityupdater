@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using System.Security.Cryptography;
 
 namespace FH2CommunityUpdater
 {
@@ -18,4 +17,28 @@ namespace FH2CommunityUpdater
         }
 
     }
+
+    internal class ProtectionManager
+    {
+       
+       internal MainWindow parent;
+
+
+       internal bool checkPassword(ContentClass addon, string password)
+       {
+           return false;
+       }
+
+        void checkSaved(string hash)
+        {
+
+        }
+
+        void checkTyped(string pass)
+        {
+
+        }
+
+    }
+
 }
