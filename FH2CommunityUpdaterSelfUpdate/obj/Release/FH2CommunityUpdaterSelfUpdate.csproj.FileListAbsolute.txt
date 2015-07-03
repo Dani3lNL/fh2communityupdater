@@ -5,5 +5,5 @@ C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2Comm
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdaterSelfUpdate\obj\Release\FH2CommunityUpdaterSelfUpdate.csproj.GenerateResource.Cache
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdaterSelfUpdate\obj\Release\FH2CommunityUpdaterSelfUpdate.exe
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdaterSelfUpdate\obj\Release\FH2CommunityUpdaterSelfUpdate.pdb
-C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdaterSelfUpdate\obj\Release\FH2CommunityUpdaterSelfUpdate.csprojResolveAssemblyReference.cache
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdaterSelfUpdate\bin\Release\FH2CommunityUpdaterSelfUpdate.exe.config
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdaterSelfUpdate\obj\Release\FH2CommunityUpdaterSelfUpdate.csprojResolveAssemblyReference.cache

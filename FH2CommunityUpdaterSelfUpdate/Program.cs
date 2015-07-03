@@ -14,7 +14,15 @@ namespace FH2CommunityUpdaterSelfUpdate
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new SelfUpdateWindow( args ));
+            try
+            {
+                Application.Run(new SelfUpdateWindow(args));
+            }
+            catch (Exception e)
+            {
+                MessageBox.Show(e.ToString());
+                Environment.Exit(0);
+            }
         }
     }
 }

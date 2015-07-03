@@ -8,9 +8,11 @@ C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2Comm
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.SettingsWindow.resources
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.Properties.Resources.resources
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.PWCheck.resources
-C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.Updater.resources
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.csproj.GenerateResource.Cache
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.exe
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.pdb
-C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.csprojResolveAssemblyReference.cache
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\bin\Release\FH2CommunityUpdater.exe.config
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.ErrorReport.resources
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.UpdateWindow.resources
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.csprojResolveAssemblyReference.cache
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.DebugWindow.resources

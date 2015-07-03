@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Windows.Forms;
 using MonoTorrent.Client;
 using MonoTorrent.Client.Encryption;
 using System.IO;
@@ -29,18 +30,15 @@ namespace FH2CommunityUpdater
         public long downloadSize;
         private long initialSize;
         public long totalSize;
-        public double progress = 0.0;
-        private int downloadSpeed;
-        private int uploadSpeed;
-        private int seeds;
-        private int leeches;
+        //public DebugWindow debugWindow = new DebugWindow();
         
         private List<long> speedSample = new List<long>();
         private long lastTime = -10000;
         private string lastTimeMessage = "Estimating remaining Download Time...";
+        private double lastProgress;
+        private double initialProgress = -999999;
 
         private MonoTorrent.Dht.Listeners.DhtListener listener;
-        private System.Timers.Timer timer = new System.Timers.Timer(50000);
 
 
         public delegate void TorrentStatusUpdateHandler(TorrentUser sender, TorrentStatusUpdateEventArgs e);
@@ -58,7 +56,8 @@ namespace FH2CommunityUpdater
 
         internal void setSeedRate(int newRate)
         {
-            this.engine.Settings.GlobalMaxUploadSpeed = newRate;
+            if (this.engine != null)
+                this.engine.Settings.GlobalMaxUploadSpeed = newRate;
         }
 
         internal void SetupEngine()
@@ -69,17 +68,17 @@ namespace FH2CommunityUpdater
             // first if this is true. Otherwise an unencrypted connection will be attempted first.
             settings.PreferEncryption = true;
             // Torrents will be downloaded here by default when they are registered with the engine
-            settings.SavePath = Path.Combine("..", "..");
+            DirectoryInfo folder = new DirectoryInfo(Application.StartupPath);
+            folder = folder.Parent.Parent;
+            settings.SavePath = folder.FullName;
             if (Properties.Settings.Default.limitSeed)
                 settings.GlobalMaxUploadSpeed = Properties.Settings.Default.seedRate;
             this.engine = new ClientEngine(settings);
             // Tell the engine to listen at port 6969 for incoming connections
-            engine.ChangeListenEndpoint(new IPEndPoint(IPAddress.Any, 6969));
+            engine.ChangeListenEndpoint(new IPEndPoint(IPAddress.Any, Properties.Settings.Default.listenPort));
             //StartDht(this.engine, 6969);
 
             this.engine.StatsUpdate += engine_StatsUpdate;
-            this.timer.AutoReset = true;
-            this.timer.Elapsed += timer_Elapsed;
 
         }
 
@@ -127,30 +126,32 @@ namespace FH2CommunityUpdater
 
         internal void LoadTorrents(List<string> torrentPaths, List<FH2File> obsoleteFiles)
         {
-            StartDht(this.engine, 6969);
+            SetupEngine();
+            //this.debugWindow.Show();
+            //StartDht(this.engine, 6969);
             this.engineState = EngineState.Downloading;
             this.managers.Clear();
             this.torrents.Clear();
-            var torrents = this.engine.Torrents;
-            foreach (TorrentManager manager in torrents)
-            {
-                this.engine.Unregister(manager);
-            }
+            this.totalSize = 0;
+            this.downloadSize = 0;
+            this.initialProgress = -999999;
+            this.lastProgress = 0;
+            this.lastTime = -10000;
 
             foreach ( string filePath in  torrentPaths)
             {
                 Torrent torrent = null;
                 try { torrent = Torrent.Load(filePath); }
-                catch (Exception e) { Console.WriteLine(e); } 
+                catch (Exception e) { Console.WriteLine(e); }//debugWindow.Debug(e.ToString()); } 
                 foreach (TorrentFile file in torrent.Files)
                 {
-                    file.Priority = Priority.DoNotDownload;
+                    //file.Priority = Priority.DoNotDownload;
+                    file.Priority = Priority.Normal;
                     this.totalSize += file.Length;
-                    Console.WriteLine(file.Path);
                     foreach (FH2File fh2File in obsoleteFiles)
                     {
-                        Console.WriteLine(fh2File.fullPath);
-                        if (true) //(fh2File.fullPath == file.FullPath)
+                        if ((fh2File.fullPath == Path.Combine(torrent.Name, file.FullPath)
+                            ||((fh2File.name.ToLower().Contains("ubuntu")&&(fh2File.name.ToLower().Contains(".iso"))))))
                         {
                             file.Priority = Priority.Normal;
                             this.downloadSize += file.Length;
@@ -165,15 +166,34 @@ namespace FH2CommunityUpdater
                 this.engine.Register(manager);
 
                  // Disable rarest first and randomised picking - only allow priority based picking (i.e. selective downloading)
-                PiecePicker picker = new StandardPicker();
-                picker = new PriorityPicker(picker);
-                manager.ChangePicker(picker);
-                manager.Start();
+                //PiecePicker picker = new StandardPicker();
+                //picker = new PriorityPicker(picker);
+                //manager.ChangePicker(picker);
+                try { manager.Start(); }
+                catch (Exception e) {
+                    MessageBox.Show("Could not start the torrent.\nError Message:\n" + e.Message);
+                    Console.WriteLine(e); }//debugWindow.Debug(e.ToString()); }
             }
+        }
+
+        internal void StopUpdate()
+        {
+            this.engineState = EngineState.Paused;
+            if (this.engine == null)
+                return;
+            this.engine.PauseAll();
+            this.engine.StopAll();
+            this.managers.Clear();
+            this.torrents.Clear();
+            this.engine.Dispose();
+            this.engine = null;
+            this.lastTimeMessage = "";
         }
 
         internal void StopSeeding()
         {
+            if (this.engine == null)
+                return;
             this.engineState = EngineState.Paused;
             this.engine.StopAll();
             //var torrents = this.engine.Torrents;
@@ -188,19 +208,14 @@ namespace FH2CommunityUpdater
         internal void SeedTorrents(List<string> torrentPaths)
         {
             this.engineState = EngineState.Seeding;
+            //this.StartDht(this.engine, 6969);
             this.managers.Clear();
             this.torrents.Clear();
-            var torrents = this.engine.Torrents;
-            foreach (TorrentManager manager in torrents)
-            {
-                //this.engine.Unregister(manager);
-            }
-
             foreach (string filePath in torrentPaths)
             {
                 Torrent torrent = null;
                 try { torrent = Torrent.Load(filePath); }
-                catch (Exception e) { Console.WriteLine(e); }
+                catch (Exception e) { Console.WriteLine(e); } //debugWindow.Debug(e.ToString()); }
                 foreach (TorrentFile file in torrent.Files)
                 {
                     file.Priority = Priority.Normal;
@@ -212,58 +227,84 @@ namespace FH2CommunityUpdater
                 TorrentManager manager = new TorrentManager(torrent, engine.Settings.SavePath, settings);
                 this.managers.Add(manager);
                 this.engine.Register(manager);
-
                 manager.Start();
             }
+            this.engine.StartAll();
         }
 
         void engine_StatsUpdate(object sender, StatsUpdateEventArgs e)
         {
-            if (this.engine.TotalUploadSpeed != 0)
-                Console.WriteLine(this.engine.TotalUploadSpeed);
             if (this.engineState == EngineState.Paused)
                 return;
-            this.uploadSpeed = this.engine.TotalUploadSpeed;
-            this.downloadSpeed = this.engine.TotalDownloadSpeed;
+            long uploadSpeed = this.engine.TotalUploadSpeed;
+            long downloadSpeed = this.engine.TotalDownloadSpeed;
             int seeds = 0;
             int leeches = 0;
+            int nPeers = 0;
             double totalProgress = 0.0;
+            string names = "Torrents: ";
+            bool done = true;
             foreach ( TorrentManager manager in this.managers )
             {
+                if (!manager.Complete)
+                    done = false;
                 totalProgress = totalProgress + manager.Progress;
                 seeds += manager.Peers.Seeds;
                 leeches += manager.Peers.Leechs;
+                nPeers += manager.InactivePeers;
+                names += manager.Torrent.Comment;
             }
-            this.seeds = seeds;
-            this.leeches = leeches;
+            if ((this.engineState == EngineState.Downloading) && (seeds == 0))
+                seeds += leeches;
+            string debugMessage = names + " Inactive Peers: " + nPeers.ToString()
+                + " Seeds: " + seeds.ToString() + " Peers: " + leeches.ToString()
+                + " UL: " + uploadSpeed.ToString() + " DL: " + downloadSpeed.ToString() +
+                " Progress: " + (((totalProgress / (double)this.managers.Count) - 100 * (1 - (double)this.downloadSize / (double)this.totalSize)) * (double)this.totalSize / (double)this.downloadSize).ToString()
+                +" DLSize: " + this.downloadSize.ToString() + " TotalSize: " + this.totalSize.ToString();
+            //debugWindow.Debug(debugMessage);
+            Console.WriteLine(debugMessage);
             if (this.engineState == EngineState.Seeding)
             {
                 string seedText;
-                if ((this.leeches == 0)&&(this.uploadSpeed == 0))
+                if ((leeches == 0)&&(uploadSpeed == 0))
                     seedText = "Waiting for peers...";
                 else
-                    seedText = "Seeding to " + this.leeches.ToString() + " peers at " + niceSize(this.uploadSpeed) + "/s";
-                TorrentStatusUpdateEventArgs seedArgs = new TorrentStatusUpdateEventArgs(this.uploadSpeed, 0, this.leeches, 0, 0, seedText, "");
+                    seedText = "Seeding to " + leeches.ToString() + " peers at " + niceSize(uploadSpeed) + "/s";
+                TorrentStatusUpdateEventArgs seedArgs = new TorrentStatusUpdateEventArgs((int)uploadSpeed, 0, leeches, 0, 0, seedText, "");
                 StatusUpdate(this, seedArgs);
                 return;
             }
-            this.progress = (totalProgress / (double)this.managers.Count) / (this.downloadSize / this.totalSize);
+            double progress = (totalProgress / (double)this.managers.Count);
+            progress = (progress - 100 * (1 - (double)this.downloadSize / (double)this.totalSize)) * (double)this.totalSize / (double)this.downloadSize;
+            bool stillHashing = false;
+            string hashMessage = "";
+            if (progress < 0)
+            {
+                stillHashing = true;
+                if (this.initialProgress == -999999)
+                    this.initialProgress = progress;
+                var hashProgress = 1 - progress / this.initialProgress;
+                hashMessage = "Hashing existing pieces (" + String.Format("{0:0.#}",(hashProgress * 100)) + "%)";
+                progress = 0;
+            }
 
             long remaining;
-            if ((this.progress > 0.000001) && (this.downloadSpeed == 0))
+            if ((progress > 0.000001) && (downloadSpeed == 0))
             {
-                this.initialSize = (long)((100.0 - this.progress) * (double)this.downloadSize / 100.0);
+                this.initialSize = (long)((100.0 - progress) * (double)this.downloadSize / 100.0);
             }
-            remaining = (long)((100.0 - this.progress) * (double)this.downloadSize / 100.0);
+            remaining = (long)((100.0 - progress) * (double)this.downloadSize / 100.0);
+            progress = Math.Round(progress, 6);
 
-            this.speedSample.Add(this.downloadSpeed);
+            this.speedSample.Add(downloadSpeed);
             if (this.speedSample.Count > 30)
                 this.speedSample.RemoveAt(0);
             double weight = 0;
             long speedSum = 0;
             float fallOff = 0;
             int k = this.speedSample.Count;
-            foreach (long entry in this.speedSample)
+            List<long> speeds = new List<long>(this.speedSample);
+            foreach (long entry in speeds)
             {
                 speedSum += (long)((double)entry / Math.Pow(k, fallOff));
                 weight += (1.0 / Math.Pow(k, fallOff));
@@ -284,23 +325,34 @@ namespace FH2CommunityUpdater
                 if ((Math.Abs((this.lastTime - timeRemaining)) > 89) && (timeRemaining > 60))
                     skipTime = true;
             }
+            string plural = "";
+            if (seeds > 1)
+                plural = "s";
             this.lastTime = timeRemaining;
-            if ((timeRemaining < 0) || (Math.Abs(timeRemaining) > 10000000))
+            if ((timeRemaining < 0) || (Math.Abs(timeRemaining) > 100000))
                 skipTime = true;
 
             string infoMessage = "";
             if (this.engineState == EngineState.Paused)
-                infoMessage = "Download paused (" + ((int)this.progress).ToString() + "% of "
+                infoMessage = "Download paused (" + ((int)progress).ToString() + "% of "
                     + niceSize(this.downloadSize) + " completed.)";
-            else if ((this.downloadSpeed == 0) && ((int)this.progress != 100) && ((int)this.progress != 0))
-                infoMessage = "Resuming previous update...";
-            else if ((this.downloadSpeed == 0) && ((int)this.progress == 0))
-                infoMessage = "Establishing Connections...";
+            else if ((downloadSpeed == 0) && ((int)progress != 100) && ((int)progress != 0))
+            {
+                if ((progress == this.lastProgress) && (progress > 0))
+                    infoMessage = "Waiting for seeds...";
+                else
+                    infoMessage = "Resuming previous update...";
+                this.lastProgress = progress;
+            }
+            else if ((downloadSpeed == 0) && ((int)progress == 0))
+                if (stillHashing)
+                    infoMessage = hashMessage;
+                else
+                    infoMessage = "Establishing Connections...";
             else
                 infoMessage = "Downloading " + niceSize(this.downloadSize)
-                    + " from " + this.seeds.ToString() + " seeds at " + niceSize(this.downloadSpeed)
-                    + "/s (" + ((int)this.progress).ToString() + "% completed)";
-
+                    + " from " + seeds.ToString() + " seed" + plural + " at " + niceSize(downloadSpeed)
+                    + "/s (" + ((int)progress).ToString() + "% completed)";
             string timeMessage = "";
             if (!skipTime)
             {
@@ -310,32 +362,21 @@ namespace FH2CommunityUpdater
             else
                 timeMessage = this.lastTimeMessage;
 
-            TorrentStatusUpdateEventArgs args = new TorrentStatusUpdateEventArgs(this.uploadSpeed, this.downloadSpeed, this.leeches, this.seeds, this.progress, infoMessage, timeMessage);
-            if (this.progress == 100) //((this.downloadSpeed == 0) && ((int)this.progress == 100))
+            TorrentStatusUpdateEventArgs args = new TorrentStatusUpdateEventArgs((int)uploadSpeed, (int)downloadSpeed, leeches, seeds, progress, infoMessage, timeMessage);
+            if ((progress == 100)||(done))
             {
-                //this.engine.StopAll();
-                //this.engineState = EngineState.Paused;
-                //UpdateFinished(args);
+                this.engine.StopAll();
+                this.engineState = EngineState.Paused;
                 //StopDht();
-                //StartDht(this.engine, 6969);
-                this.timer.Enabled = true;
-
+                UpdateFinished(args);
             }
             else if (this.engineState != EngineState.Paused)
                 UpdateStatus(args);
-
-            
-        }
-
-        void timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
-        {
-            Console.WriteLine("Resetting timer.");
-            this.engine.StopAll();
-            this.engine.StartAll();
         }
 
         private void UpdateFinished(TorrentStatusUpdateEventArgs e)
         {
+            this.lastTimeMessage = "";
             if (this.TorrentDownloadCompleted == null) return;
             TorrentDownloadCompleted(this, e);
         }
@@ -372,9 +413,9 @@ namespace FH2CommunityUpdater
         {
             switch (i)
             {
-                case 0: return "seconds";
-                case 1: return "minutes";
-                case 2: return "hours";
+                case 0: return "second";
+                case 1: return "minute";
+                case 2: return "hour";
                 default: return null;
             }
         }
@@ -387,7 +428,11 @@ namespace FH2CommunityUpdater
                 dTime /= 60;
                 i++;
             }
-            return string.Format("{0:0}", dTime) + " " + timeUnit(i);
+            string unit = timeUnit(i);
+            var sTime = string.Format("{0:0}", dTime);
+            if (int.Parse(sTime) > 1)
+                unit += "s";
+            return sTime + " " + unit;
         }
     }
 
@@ -412,7 +457,10 @@ namespace FH2CommunityUpdater
             this.timeMessage = timeMessage;
             this.infoMessage = infoMessage;
             if ((this.DownloadSpeed == 0) && (this.UploadSpeed == 0))
-                this.notifyMessage = "Establishing Connections.";
+                if (progress < 0)
+                    this.notifyMessage = "Hashing existing Files.";
+                else
+                    this.notifyMessage = "Establishing Connections.";
             else if (this.DownloadSpeed < this.UploadSpeed)
                 this.notifyMessage = "Seeding to " + leeches.ToString() + " peers at " + niceSize(uploadSpeed) + "/s";
             else

@@ -22,6 +22,7 @@ namespace FH2CommunityUpdater
             checkBox1.Checked = Properties.Settings.Default.runStartUp;
             checkBox6.Checked = Properties.Settings.Default.limitSeed;
             numericUpDown1.Value = (decimal)Properties.Settings.Default.seedRate;
+            numericUpDown2.Value = (decimal)Properties.Settings.Default.listenPort;
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -50,13 +51,19 @@ namespace FH2CommunityUpdater
 
         private void button2_Click(object sender, EventArgs e)
         {
-            checkBox5.Checked = true;
+            checkBox5.Checked = false;
             checkBox3.Checked = true;
             checkBox2.Checked = false;
             checkBox4.Checked = true;
             checkBox1.Checked = false;
             checkBox6.Checked = false;
-            numericUpDown1.Value = 0;
+            numericUpDown1.Value = 10;
+            numericUpDown2.Value = 6969;
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            numericUpDown2.Value = (new Random()).Next(6000, 50000);
         }
     }
 }

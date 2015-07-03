@@ -2,6 +2,7 @@
 using System.Windows.Forms;
 using System.IO;
 using System.Diagnostics;
+using System.Threading;
 
 namespace FH2CommunityUpdaterSelfUpdate
 {
@@ -13,6 +14,7 @@ namespace FH2CommunityUpdaterSelfUpdate
             this.progressBar1.Maximum = 100;
             this.progressBar1.Value = 100;
             this.label1.Text = "Waiting for FH2CommunityUpdater.exe to exit...";
+            Thread.Sleep(1000);
             SelfUpdate selfUpdate = new SelfUpdate(args);
         }
     }
@@ -23,8 +25,7 @@ namespace FH2CommunityUpdaterSelfUpdate
 
         internal SelfUpdate(string[] args)
         {
-            this.filePath = string.Join("", args);
-            Console.WriteLine(Path.Combine(this.filePath, "FH2CommunityUpdater.exe"));
+            this.filePath = string.Join(" ", args);
             checkProcesses();
         }
 
@@ -33,12 +34,10 @@ namespace FH2CommunityUpdaterSelfUpdate
             Process[] pname = Process.GetProcessesByName("FH2CommunityUpdater");
             if (pname.Length == 0)
             {
-                Console.WriteLine("Go ahead.");
                 update();
             }
             else
             {
-                Console.WriteLine("Wait.");
                 Process[] processes = Process.GetProcesses();
                 foreach (Process p in processes)
                 {

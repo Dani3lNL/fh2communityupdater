@@ -6,7 +6,7 @@
       <Value Profile="(Default)">20</Value>
     </Setting>
     <Setting Name="autoSeed" Type="System.Boolean" Scope="User">
-      <Value Profile="(Default)">True</Value>
+      <Value Profile="(Default)">False</Value>
     </Setting>
     <Setting Name="showTray" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>
@@ -33,6 +33,9 @@
     <Setting Name="addonVersions" Type="System.Collections.Specialized.StringCollection" Scope="User">
       <Value Profile="(Default)">&lt;?xml version="1.0" encoding="utf-16"?&gt;
 &lt;ArrayOfString xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" /&gt;</Value>
+    </Setting>
+    <Setting Name="listenPort" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">6969</Value>
     </Setting>
   </Settings>
 </SettingsFile>

@@ -1,0 +1,25 @@
+1.2.1.1 on Microsoft Windows NT 6.1.7601 Service Pack 1 reported this error Ein Aufrufziel hat einen Ausnahmefehler verursacht.
+
+Full error:
+System.Reflection.TargetInvocationException: Ein Aufrufziel hat einen Ausnahmefehler verursacht. ---> System.NullReferenceException: Der Objektverweis wurde nicht auf eine Objektinstanz festgelegt.
+   bei FH2CommunityUpdater.MainWindow.<.ctor>b__1(Object o, RunWorkerCompletedEventArgs args) in c:\Users\Lukas\Documents\Visual Studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\MainWindow.cs:Zeile 180.
+   --- Ende der internen Ausnahmestapelüberwachung ---
+   bei System.RuntimeMethodHandle._InvokeMethodFast(Object target, Object[] arguments, SignatureStruct& sig, MethodAttributes methodAttributes, RuntimeTypeHandle typeOwner)
+   bei System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture, Boolean skipVisibilityChecks)
+   bei System.Delegate.DynamicInvokeImpl(Object[] args)
+   bei System.Windows.Forms.Control.InvokeMarshaledCallbackDo(ThreadMethodEntry tme)
+   bei System.Windows.Forms.Control.InvokeMarshaledCallbackHelper(Object obj)
+   bei System.Threading.ExecutionContext.runTryCode(Object userData)
+   bei System.Runtime.CompilerServices.RuntimeHelpers.ExecuteCodeWithGuaranteedCleanup(TryCode code, CleanupCode backoutCode, Object userData)
+   bei System.Threading.ExecutionContext.Run(ExecutionContext executionContext, ContextCallback callback, Object state)
+   bei System.Windows.Forms.Control.InvokeMarshaledCallback(ThreadMethodEntry tme)
+   bei System.Windows.Forms.Control.InvokeMarshaledCallbacks()
+   bei System.Windows.Forms.Control.WndProc(Message& m)
+   bei System.Windows.Forms.Control.ControlNativeWindow.WndProc(Message& m)
+   bei System.Windows.Forms.NativeWindow.DebuggableCallback(IntPtr hWnd, Int32 msg, IntPtr wparam, IntPtr lparam)
+   bei System.Windows.Forms.UnsafeNativeMethods.DispatchMessageW(MSG& msg)
+   bei System.Windows.Forms.Application.ComponentManager.System.Windows.Forms.UnsafeNativeMethods.IMsoComponentManager.FPushMessageLoop(Int32 dwComponentID, Int32 reason, Int32 pvLoopData)
+   bei System.Windows.Forms.Application.ThreadContext.RunMessageLoopInner(Int32 reason, ApplicationContext context)
+   bei System.Windows.Forms.Application.ThreadContext.RunMessageLoop(Int32 reason, ApplicationContext context)
+   bei FH2CommunityUpdater.Program.Main() in c:\Users\Lukas\Documents\Visual Studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\Program.cs:Zeile 45./nInnerException:System.NullReferenceException: Der Objektverweis wurde nicht auf eine Objektinstanz festgelegt.
+   bei FH2CommunityUpdater.MainWindow.<.ctor>b__1(Object o, RunWorkerCompletedEventArgs args) in c:\Users\Lukas\Documents\Visual Studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\MainWindow.cs:Zeile 180.

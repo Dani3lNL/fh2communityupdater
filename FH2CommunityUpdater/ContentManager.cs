@@ -5,6 +5,7 @@ using System.Text;
 using System.Net;
 using System.Xml;
 using System.IO;
+using System.Windows.Forms;
 
 namespace FH2CommunityUpdater
 {
@@ -26,14 +27,75 @@ namespace FH2CommunityUpdater
         private List<ContentClass> availableAddons = new List<ContentClass>();
         private List<ContentClass> selectedAddons = new List<ContentClass>();
         private List<ContentClass> outdatedAddons = new List<ContentClass>();
+        private List<ContentClass> tempList = new List<ContentClass>();
         internal MainWindow Parent { get; private set; }
         private ProtectionManager protectionManager;
         private MD5Worker md5Worker;
+        private bool isBusy = false;
+
+        public delegate void ContentManagerReleasedHandler(object o, EventArgs e);
+        public event ContentManagerReleasedHandler Released;
+
+        internal bool Busy
+        { 
+            get
+            { 
+                return isBusy;
+            }
+            private set
+            {
+                if (isBusy == value)
+                    return;
+                isBusy = value;
+                if (!isBusy)
+                {
+                    if (this.md5Worker != null)
+                        this.md5Worker.Dispose();
+                    this.md5Worker = null;
+                    this.MD5Completed = null;
+                    this.MD5ProgressChanged = null;
+                    this.CurrentOwner = null;
+                    //if (this.Parent.quietSeed.Working)
+                    //   this.Parent.quietSeed.overrideWorking(this, false);
+                    Console.WriteLine("Release ContentManager.");
+                    if (Released != null)
+                        Released(this, new EventArgs());
+                }
+            }
+        }
+        internal void setNotBusy(object sender)
+        {
+            if ((sender.GetType() != typeof(UpdateWindow)) && (sender.GetType() != typeof(QuietSeed)))
+                throw new UnauthorizedAccessException();
+            else
+            {
+                this.Parent.refreshList();
+                setBusy(sender, false);
+            }
+        }
+        private void setBusy(object sender, bool value)
+        {
+            if ((Busy) && (this.OriginalOwner != sender))
+                return;
+            Busy = value;
+        }
 
         internal void informWorkerSize(ContentClass addon)
         {
-            this.md5Worker.addSize(addon);
+            if (this.md5Worker != null)
+                this.md5Worker.addSize(addon);
         }
+
+        internal void setOnly(ContentClass addon)
+        {
+            this.tempList = new List<ContentClass>(this.selectedAddons);
+            this.selectedAddons.RemoveAll(x => x != addon);
+        }
+        internal void resetOnly()
+        {
+            this.selectedAddons = new List<ContentClass>(this.tempList);
+        }
+
 
         public ContentManager(MainWindow parent, string source)
         {
@@ -41,26 +103,27 @@ namespace FH2CommunityUpdater
             this.Initialize(source);
             this.protectionManager = parent.protectionManager;
             this.retrieveSelected();
+            this.retrieveVersions();
+            this.Parent.refreshList();
         }
 
         private ContentClass ParseLine(XmlTextReader reader)
         {
-            var id = int.Parse(reader.GetAttribute("id"));
-            var name = reader.GetAttribute("name");
-            var description = reader.GetAttribute("desc");
-            var contact = new Uri(reader.GetAttribute("contact"));
-            var version = reader.GetAttribute("version");
-            var fileIndexURL = reader.GetAttribute("index");
-            var torrent = new Uri(reader.GetAttribute("torrent"));
-            var pictureURL = new Uri(reader.GetAttribute("image"));
-            var password = reader.GetAttribute("password");
-            var protection = false;
-            if (password != null)
-                protection = true;
-            return new ContentClass(this, "fh2", id, torrent, name,
-                version, description, contact, pictureURL, fileIndexURL,
-                protection, password);
-
+                var id = int.Parse(reader.GetAttribute("id"));
+                var name = reader.GetAttribute("name");
+                var description = reader.GetAttribute("desc");
+                var contact = new Uri(reader.GetAttribute("contact"));
+                var version = reader.GetAttribute("version");
+                var fileIndexURL = reader.GetAttribute("index");
+                var torrent = new Uri(reader.GetAttribute("torrent"));
+                var pictureURL = new Uri(reader.GetAttribute("image"));
+                var password = reader.GetAttribute("password");
+                var protection = false;
+                if (password != null)
+                    protection = true;
+                return new ContentClass(this, "fh2", id, torrent, name,
+                    version, description, contact, pictureURL, fileIndexURL,
+                    protection, password);
         }
 
         private void Initialize(string source)
@@ -115,11 +178,57 @@ namespace FH2CommunityUpdater
                     {
                         if (addon.ID != selectedAddons[i])
                             continue;
-                        if ((addon.protection)&&(!this.protectionManager.checkPassword(addon, savedPass[i])))
+                        if ((addon.protection)&&(!this.protectionManager.checkPassword(addon, savedPass[i], true)))
                             continue;
                         else
                         { 
                             SetAddonSelected(addon, true, true);
+                            addon.addonState = AddonState.Installed;
+                        }
+
+                    }
+                    i++;
+                }
+            }
+        }
+        private void retrieveVersions()
+        {
+            List<int> addons = new List<int>();
+            foreach (string id in Properties.Settings.Default.addonVersions)
+            {
+                if (!id.StartsWith("ID: "))
+                    continue;
+                int result = -1;
+                if (!int.TryParse(id.Replace("ID: ", ""), out result))
+                    continue;
+                else if (result != -1)
+                    addons.Add(result);
+            }
+            List<Version> instVersions = new List<Version>();
+            foreach (string v in Properties.Settings.Default.addonVersions)
+            {
+                if (!v.StartsWith("V: "))
+                    continue;
+                Version result = new Version(v.Replace("V: ", ""));
+                instVersions.Add(result);
+            }
+            if (addons.Count != instVersions.Count)
+            {
+                ContentManagerException e = new ContentManagerException(this, "Settings File doesn't have same amount of addon/pass.");
+                throw e;
+            }
+            else
+            {
+                int i = 0;
+                while (i < addons.Count)
+                {
+                    foreach (ContentClass addon in this.availableAddons)
+                    {
+                        if (addon.ID != addons[i])
+                            continue;
+                        else
+                        {
+                            addon.addVersion(instVersions[i]);
                         }
 
                     }
@@ -148,19 +257,21 @@ namespace FH2CommunityUpdater
         {
             if ((selected) && (!this.selectedAddons.Contains(addon)))
             {
+                addon.addonState = AddonState.Installed;
                 this.selectedAddons.RemoveAll(x => x == addon);
                 this.selectedAddons.Add(addon);
                 addon.setSelected(selected);
-                if (this.getUpToDateAddons().Contains(addon))
-                    this.Parent.quietSeed.Restart();
+                //if (this.getUpToDateAddons().Contains(addon))
+                //    this.Parent.quietSeed.Restart();
             }
             else if ((!selected) && (this.selectedAddons.Contains(addon)))
             {
+                addon.addonState = AddonState.NotInstalled;
                 bool restart = (this.getUpToDateAddons().Contains(addon));
                 this.selectedAddons.RemoveAll(x => x == addon);
                 addon.setSelected(selected);
-                if (restart)
-                    this.Parent.quietSeed.Restart();
+                //if (restart)
+                //    this.Parent.quietSeed.Restart();
             }
         }
         internal void SetAddonSelected(string name, bool selected)
@@ -201,6 +312,25 @@ namespace FH2CommunityUpdater
         {
             return this.selectedAddons;
         }
+
+        internal List<ContentClass> findOutdatedAddons()
+        {
+            List<ContentClass> result = new List<ContentClass>();
+            foreach (ContentClass addon in selectedAddons)
+            {
+                if (addon.installedVersion == null)
+                    result.Add(addon);
+                else if (addon.installedVersion.CompareTo(new Version(addon.version)) == -1)
+                    result.Add(addon);
+            }
+            foreach (ContentClass newAvailable in result)
+            {
+                newAvailable.addonState = AddonState.UpdateAvailable;
+            }
+            this.Parent.refreshList();
+            return result;
+        }
+
         internal List<ContentClass> getOutdatedAddons()
         {
             return this.outdatedAddons;
@@ -276,19 +406,25 @@ namespace FH2CommunityUpdater
             }
             return found;
         }
-        
-        internal bool confirmUpdated()
+
+        private object executingObject;
+        private object originalObject;
+        internal object CurrentOwner { get { return this.executingObject; } private set { this.executingObject = value; } }
+        internal object OriginalOwner { get { return this.originalObject; } private set { this.originalObject = value; } }
+
+        internal void cancelAll(object sender)
         {
-            foreach (ContentClass addon in this.selectedAddons)
-            {
-                if (!addon.InitializeLocal())
-                    return false;
-            }
-            return true;
+            if ((sender.GetType() != typeof(UpdateWindow))&&(sender.GetType() != typeof(MainWindow)))
+                throw new UnauthorizedAccessException();
+            else
+                this.CurrentOwner = null;
         }
 
         internal void findObsoleteFiles(object sender)
         {
+            this.setBusy(sender, true);
+            this.CurrentOwner = sender;
+            this.OriginalOwner = sender;
             this.outdatedAddons.Clear();
             this.md5Worker = new MD5Worker(this.selectedAddons);
             this.md5Worker.DoWork += new DoWorkEventHandler(
@@ -300,22 +436,48 @@ namespace FH2CommunityUpdater
                 }
                 foreach (ContentClass addon in this.selectedAddons)
                 {
-                    if (!addon.InitializeLocal())
+                    if (sender != CurrentOwner)
+                        return;
+                    if (!addon.InitializeLocal(sender))
+                    {
+                        if (addon.addonState != AddonState.UpdateAvailable)
+                            addon.addonState = AddonState.NeedsRepair;
                         this.outdatedAddons.Add(addon);
+                    }
+                    else
+                        addon.addonState = AddonState.Installed;
 
                 }
             });
             this.md5Worker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(
             delegate(object o, RunWorkerCompletedEventArgs args)
             {
-                if ((this.md5Worker != null)&&(this.MD5Completed != null))
-                {
-                    this.md5Worker.Dispose();
-                    this.md5Worker = null;
+                if (args.Error != null)
+                    if (args.Error.GetType() == (typeof(WebException)))
+                    {
+                        MessageBox.Show("Could not connect to the server.\nA Please check your connections and/or try again later.\nProgram will shut down.");
+                        Environment.Exit(4);
+                        return;
+                    }
+                    else if (args.Error.GetType() == (typeof(XmlException)))
+                    {
+                        MessageBox.Show("There was an error in the addon index file.\nIf this error persists, please leave a message on the forums.");
+                        Environment.Exit(5);
+                        return;
+                    }
+                    else
+                        throw args.Error;
+                if ((sender == this.CurrentOwner)&&(this.MD5Completed != null))
                     this.MD5Completed(this, new MD5ProgressChangedEventArgs(1.0));
-                }
+                else
+                    this.setBusy(sender, false);
             });
             this.md5Worker.RunWorkerAsync();
+        }
+
+        void ContentManager_MD5Completed(object sender, MD5ProgressChangedEventArgs e)
+        {
+            throw new NotImplementedException();
         }
         internal List<FH2File> getObsoleteFiles(object sender)
         {
@@ -351,6 +513,7 @@ namespace FH2CommunityUpdater
 
     class ContentClass
     {
+        public AddonState addonState = AddonState.NotInstalled;
         internal ContentManager parent { get; private set; }
         internal bool isInitiated { get; private set; }
         internal bool isActive { get; private set; }              
@@ -359,9 +522,11 @@ namespace FH2CommunityUpdater
         internal Uri torrent { get; private set; }
         internal string name { get; private set; }
         internal string version { get; private set; }
+        internal Version installedVersion { get; private set; }
         internal string description { get; private set; }
         internal Uri contact { get; private set; }
         internal Uri pictureURL { get; private set; }
+        internal string pictureType { get; private set; }
         internal string fileIndexURL { get; private set; }
         internal bool protection { get; private set; }    
         internal string password { get; private set; }      
@@ -383,6 +548,7 @@ namespace FH2CommunityUpdater
             this.description = desc;
             this.contact = contact;
             this.pictureURL = pictureURL;
+            this.pictureType = Path.GetExtension(pictureURL.OriginalString);
             this.fileIndexURL = fileIndexURL;
 
             this.isActive = false;
@@ -412,7 +578,7 @@ namespace FH2CommunityUpdater
         private void addToSettings()
         {
             removeFromSettings();
-            string[] addonInfo = { "ID: " + this.ID.ToString(), "PW: " + this.password };
+            string[] addonInfo = { "ID: " + this.ID.ToString(), "PW: " + this.parent.Parent.protectionManager.getPassToSave(this.password) };
             Properties.Settings.Default.selectedAddons.AddRange(addonInfo);
         }
         private void removeFromSettings()
@@ -439,11 +605,17 @@ namespace FH2CommunityUpdater
                 i++;
             }
         }
-        private void addVersion()
+        internal void addVersion()
         {
             removeVersion();
+            this.installedVersion = new Version(this.version);
             string[] addonInfo = { "ID: " + this.ID.ToString(), "V: " + this.version };
             Properties.Settings.Default.addonVersions.AddRange(addonInfo);
+            Properties.Settings.Default.Save();
+        }
+        internal void addVersion(Version version)
+        {
+            this.installedVersion = version;
         }
         private void removeVersion()
         {
@@ -474,9 +646,12 @@ namespace FH2CommunityUpdater
             InitFileIndex();
         }
 
-        public bool InitializeLocal()
+        public bool InitializeLocal(object sender)
         {
-            InitLocalFiles();
+            if (!InitLocalFiles(sender)) 
+            {
+                return false;
+            }
             bool result = compareFiles();
             this.isInitiated = true;
             return result;
@@ -497,6 +672,7 @@ namespace FH2CommunityUpdater
             this.fileIndex.Clear();
             this.totalSize = 0;
             XmlTextReader reader = new XmlTextReader(this.fileIndexURL);
+            var test = 0;
             while (reader.Read())
             {
                 if ((reader.NodeType == XmlNodeType.Element) && (reader.Name == "file"))
@@ -511,25 +687,35 @@ namespace FH2CommunityUpdater
                         fh2fileWeb.checksum = reader.GetAttribute("checksum").ToUpper();
                         fh2fileWeb.fullPath = Path.Combine(fh2fileWeb.target, fh2fileWeb.name);
                         this.fileIndex.Add(fh2fileWeb);
+                        test++;
                     }
                 }
             }
+            if (test == 0)
+                throw new XmlException("File Index has no elements!");
             this.parent.informWorkerSize(this);
             reader.Close();
             return true;
         }
-        private bool InitLocalFiles()
+        private bool InitLocalFiles(object sender)
         {
             this.localFiles.Clear();
             long dealtSize = 0;
+            DirectoryInfo folder = new DirectoryInfo(Application.StartupPath);
+            folder = folder.Parent.Parent;
             foreach (FH2File fh2File in this.fileIndex)
             {
+                if (sender != this.parent.CurrentOwner)
+                {
+                    Console.WriteLine("Cancel this MD5Check.");
+                    return false;
+                }
                 FH2File localfile = fh2File.Clone();
                 string fileName = fh2File.name;
-                string filePath = Path.Combine(Path.Combine(Path.Combine("..", ".."), fh2File.target), fh2File.name);
+                string filePath = Path.Combine(Path.Combine(folder.FullName, fh2File.target), fh2File.name);
                 localfile.Client(filePath, rootFolder);
                 dealtSize += fh2File.size;
-                double Progress = dealtSize / this.totalSize;
+                double Progress = (double)dealtSize / (double)this.totalSize;
                 localFiles.Add(localfile);
                 Report(Progress);
             }
@@ -542,7 +728,14 @@ namespace FH2CommunityUpdater
             while (i < this.fileIndex.Count)
             {
                 if (!(this.fileIndex[i].Compare(this.localFiles[i])))
+                {
                     this.obsoleteFiles.Add(this.fileIndex[i]);
+                    string debugMessage = "File " + this.fileIndex[i].fullPath + " needs to be updated: Size is "
+                        + this.localFiles[i].size.ToString() + " (should be " + this.fileIndex[i].size.ToString() +
+                        "), MD5 is " + this.localFiles[i].checksum + " (should be " + this.fileIndex[i].checksum +
+                        ") ";
+                    //this.parent.Parent.torrentUser.debugWindow.Debug(debugMessage);
+                }
                 i++;
             }
             if (this.obsoleteFiles.Count == 0)
@@ -554,6 +747,14 @@ namespace FH2CommunityUpdater
                 return false;
         }
 
+    }
+    
+    public enum AddonState
+    {
+        Installed = 0,
+        UpdateAvailable = 1,
+        NeedsRepair = 2,
+        NotInstalled = 3,
     }
 
     class MD5Worker : BackgroundWorker

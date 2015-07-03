@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Text;
 using System.Windows.Forms;
+using System.IO;
 using System.Security.Cryptography;
 
 namespace FH2CommunityUpdater
@@ -15,7 +16,6 @@ namespace FH2CommunityUpdater
             InitializeComponent();
             textBox1.UseSystemPasswordChar = true;
         }
-
     }
 
     internal class ProtectionManager
@@ -23,22 +23,47 @@ namespace FH2CommunityUpdater
        
        internal MainWindow parent;
 
+       internal ProtectionManager(MainWindow parent)
+       {
+           this.parent = parent;
+       }
+
+       internal string getPassToSave(string hash)
+       {
+           return getPassSave(hash);
+       }
+       internal bool checkPassword(ContentClass addon, string hash, bool some)
+       {
+           if (!addon.protection)
+               return true;
+           else
+               return (checkSaved(hash, addon.password));
+       }
 
        internal bool checkPassword(ContentClass addon, string password)
        {
-           return false;
+           if (!addon.protection)
+               return true;
+           else
+               return (checkTyped(password, addon.password));
        }
 
-        void checkSaved(string hash)
+        private string getPassSave(string hash)
         {
-
+			//Code removed.
+            return hash
         }
 
-        void checkTyped(string pass)
+        private bool checkSaved(string hash, string against)
         {
-
+			//Code removed.
+            return true;
         }
 
+        private bool checkTyped(string pass, string against)
+        {
+			//Code removed.
+            return true;
+        }
     }
-
 }

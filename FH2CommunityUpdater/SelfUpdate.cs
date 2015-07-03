@@ -37,9 +37,10 @@ namespace FH2CommunityUpdater
                 Console.WriteLine(localVersion);
                 Console.WriteLine(globalVersion);
             }
-            catch ( Exception e)
+            catch ( WebException )
             {
-                MessageBox.Show(e.Message);
+                MessageBox.Show("Could not connect to the server.\nA Please check your connections and/or try again later.\nProgram will shut down.");
+                Environment.Exit(4);
             }
             if (new Version(localVersion).CompareTo(new Version(globalVersion)) == -1)
                 prepareUpdate( mostRecentExe );
@@ -123,14 +124,10 @@ namespace FH2CommunityUpdater
         {
 
             string exeToRun = Path.Combine(System.IO.Path.GetTempPath(), "fh2communityupdaterselfupdate.exe");
-            if (!File.Exists(exeToRun))
-            {
-
-                byte[] exeBytes = Properties.Resources.fh2communityupdaterselfupdate;
-                Console.WriteLine(exeToRun);
-                using (FileStream exeFile = new FileStream(exeToRun, FileMode.CreateNew))
-                    exeFile.Write(exeBytes, 0, exeBytes.Length);
-            }
+            byte[] exeBytes = Properties.Resources.fh2communityupdaterselfupdate;
+            Console.WriteLine(exeToRun);
+            using (FileStream exeFile = new FileStream(exeToRun, FileMode.Create))
+                exeFile.Write(exeBytes, 0, exeBytes.Length);
             var p = new Process();
             p.StartInfo.FileName = exeToRun;
             p.StartInfo.Arguments = Application.StartupPath;

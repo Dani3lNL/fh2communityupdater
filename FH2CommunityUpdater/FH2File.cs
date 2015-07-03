@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Diagnostics;
 using System.Security.Cryptography;
+using System.Windows.Forms;
 
 namespace FH2CommunityUpdater
 {
@@ -22,13 +23,15 @@ namespace FH2CommunityUpdater
             if (File.Exists(fileName))
             {
                 FileInfo file = new FileInfo(fileName);
+                //MessageBox.Show(fileName);
                 string folder = file.DirectoryName.ToLower();
                 this.name = file.Name;
                 this.size = file.Length;
-                while (!folder.StartsWith(rootFolder + Path.DirectorySeparatorChar))
+                while (!(folder.StartsWith(Path.DirectorySeparatorChar + rootFolder + Path.DirectorySeparatorChar) || (folder == Path.DirectorySeparatorChar + rootFolder)))
                 {
                     folder = folder.Substring(1);
                 }
+                folder = folder.Substring(1);
                 this.target = folder;
                 this.fullPath = folder + "\\" + this.name;
                 this.checksum = this.getChecksum(fileName).ToLower();

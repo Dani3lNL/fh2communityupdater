@@ -8,6 +8,7 @@ C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2Comm
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.PWCheck.resources
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.SettingsWindow.resources
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.SelfUpdateWindow.resources
-C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.csprojResolveAssemblyReference.cache
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\bin\Debug\FH2CommunityUpdater.exe.config
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.UpdateWindow.resources
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.ErrorReport.resources
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Debug\FH2CommunityUpdater.csprojResolveAssemblyReference.cache

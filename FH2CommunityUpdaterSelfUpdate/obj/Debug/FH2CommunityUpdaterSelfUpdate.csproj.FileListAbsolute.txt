@@ -5,3 +5,4 @@ C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2Comm
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdaterSelfUpdate\obj\Debug\FH2CommunityUpdaterSelfUpdate.csproj.GenerateResource.Cache
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdaterSelfUpdate\obj\Debug\FH2CommunityUpdaterSelfUpdate.exe
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdaterSelfUpdate\obj\Debug\FH2CommunityUpdaterSelfUpdate.pdb
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdaterSelfUpdate\bin\Debug\FH2CommunityUpdaterSelfUpdate.exe.config

@@ -18,6 +18,7 @@ namespace FH2CommunityUpdater
         public ContentManager contentManager;
         public TorrentUser torrentUser;
         public EngineState engineState = EngineState.Paused;
+        public bool userStarted = false;
 
         public delegate void QuietSeedEventHandler(object sender, QuietSeedEventArgs e);
         public event QuietSeedEventHandler QuietSeedInfo;
@@ -25,8 +26,26 @@ namespace FH2CommunityUpdater
         public delegate void QuietSeedStartedEventHandler(object sender, EventArgs e);
         public event QuietSeedStartedEventHandler WaitForFinish;
 
-        private bool waiting = false;
-        public static bool isInRestart = false;
+        private bool isInRestart = false;
+        public bool Working
+        {
+            get
+            {
+                return isInRestart;
+            }
+            private set
+            {
+                isInRestart = value;
+            }
+        }
+
+        internal void overrideWorking(object sender, bool value)
+        {
+            if (sender.GetType() != typeof(ContentManager))
+                throw new UnauthorizedAccessException();
+            else
+                this.Working = value;
+        }
 
         public QuietSeed(MainWindow parent)
         {
@@ -37,32 +56,45 @@ namespace FH2CommunityUpdater
         public void Restart()
         {
             this.Stop();
-            this.Start();
+            if ((!userStarted) && (!Properties.Settings.Default.autoSeed))
+                return;
+            if (!this.parent.updateInProgress)
+                this.Start();
         }
 
-        public void Start()
+        public void Start(bool user)
         {
-            if (isInRestart)
+            if ((!user) && (!Properties.Settings.Default.autoSeed))
+                return;
+            else
+                Start();
+        }
+
+        private void Start()
+        {
+            if (this.Working)
             {
+                if (this.WaitForFinish != null)
+                    this.WaitForFinish = null;
                 this.WaitForFinish += QuietSeed_WaitForFinish;
                 return;
             }
-            isInRestart = true;
-            this.torrentUser.engine.Dispose();
+            this.Working = true;
+            if (this.torrentUser.engine != null)
+                this.torrentUser.engine.Dispose();
             this.torrentUser.SetupEngine();
             this.engineState = EngineState.Seeding;
             if (contentManager.getSelectedAddons().Count == 0)
             {
                 QuietSeedInfo(this, new QuietSeedEventArgs("No content active...", "Idle"));
-                isInRestart = false;
+                this.Working = false;
                 return;
             }
             if (true) // (contentManager.getOutdatedAddons().Count == 0)
             {
-                string infoMessage = "Checking local files.";
-                QuietSeedInfo(this, new QuietSeedEventArgs(infoMessage, "Preparing to seed."));
+                string infoMessage = "Checking local files...";
+                QuietSeedInfo(this, new QuietSeedEventArgs(infoMessage, "Preparing to seed..."));
                 contentManager.MD5Completed += contentManager_MD5Completed;
-                this.waiting = true;
                 contentManager.findObsoleteFiles(this);
             }
         }
@@ -71,27 +103,27 @@ namespace FH2CommunityUpdater
         {
             this.WaitForFinish -= QuietSeed_WaitForFinish;
             Console.WriteLine("Wait your turn!");
-            this.Start();
+            if (!this.parent.updateInProgress)
+                this.Start();
         }
 
         void contentManager_MD5Completed(object sender, MD5ProgressChangedEventArgs e)
         {
             contentManager.MD5Completed -= contentManager_MD5Completed;
-            //if ((this.engineState == EngineState.Seeding)&&(this.waiting))
+            this.contentManager.setNotBusy(this);
             Continue();
         }
 
         private void Continue()
         {
-            this.waiting = false;
-            QuietSeedInfo(this, new QuietSeedEventArgs("Downloading torrent files.", "Preparing to seed."));
+            QuietSeedInfo(this, new QuietSeedEventArgs("Downloading torrent files...", "Preparing to seed..."));
             List<Uri[]> torrentURLs = new List<Uri[]>();
             List<ContentClass> seedThese = contentManager.getUpToDateAddons();
             if (seedThese.Count == 0)
             {
                 QuietSeedInfo(this, new QuietSeedEventArgs("Nothing to seed...", "Idle"));
                 this.engineState = EngineState.Paused;
-                isInRestart = false;
+                this.Working = false;
                 return;
             }
             foreach (ContentClass addon in seedThese)
@@ -136,7 +168,7 @@ namespace FH2CommunityUpdater
                 torrentPaths.Add(entry[1].OriginalString);
             }
             this.torrentUser.SeedTorrents(torrentPaths);
-            isInRestart = false;
+            this.Working = false;
             if (this.WaitForFinish != null)
                 WaitForFinish(this, new EventArgs());
 
@@ -152,9 +184,12 @@ namespace FH2CommunityUpdater
 
         public void Stop()
         {
+            if (this.contentManager.CurrentOwner == this)
+                this.contentManager.cancelAll(this.parent);
             this.engineState = EngineState.Paused;
             this.torrentUser.StatusUpdate -= torrentUser_StatusUpdate;
             this.torrentUser.StopSeeding();
+            QuietSeedInfo(this, new QuietSeedEventArgs("Auto-Seed is not active.", "Idle"));
         }
 
     }

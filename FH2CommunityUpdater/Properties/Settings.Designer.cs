@@ -37,7 +37,7 @@ namespace FH2CommunityUpdater.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
         public bool autoSeed {
             get {
                 return ((bool)(this["autoSeed"]));
@@ -142,6 +142,18 @@ namespace FH2CommunityUpdater.Properties {
             }
             set {
                 this["addonVersions"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("6969")]
+        public int listenPort {
+            get {
+                return ((int)(this["listenPort"]));
+            }
+            set {
+                this["listenPort"] = value;
             }
         }
     }
