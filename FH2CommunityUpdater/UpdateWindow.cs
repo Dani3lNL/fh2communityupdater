@@ -6,6 +6,7 @@ using System.Text;
 using System.Windows.Forms;
 using System.Net;
 using System.IO;
+using System.Threading;
 
 namespace FH2CommunityUpdater
 {
@@ -17,6 +18,9 @@ namespace FH2CommunityUpdater
         internal ContentManager contentManager;
         internal TorrentUser torrentUser;
         public MainWindow parent;
+        internal List<string> changeLogs = new List<string>();
+        private int amount = 0;
+        private int finishedDL = 0;
 
 
         protected internal DialogResult ShowDialog(IWin32Window owner, bool start)
@@ -31,7 +35,6 @@ namespace FH2CommunityUpdater
             this.parent = parent;
             this.contentManager = parent.contentManager;
             this.torrentUser = parent.torrentUser;
-            //this.torrentUser.debugWindow.Show();
         }
 
         public void Start()
@@ -60,12 +63,15 @@ namespace FH2CommunityUpdater
             this.contentManager.MD5Completed -= contentManager_MD5Completed;
             this.contentManager.MD5ProgressChanged -= contentManager_MD5ProgressChanged;
             setMD5Info(e.Progress);
+
             this.contentManager.setNotBusy(this);
             Continue();
         }
 
         private void Continue()
         {
+            if (!this.parent.updateInProgress)
+                return;
             setProgressBar(0);
             List<FH2File> toDownload = this.contentManager.getObsoleteFiles(this);
             if (toDownload.Count == 0)
@@ -79,12 +85,6 @@ namespace FH2CommunityUpdater
                 disposeThis();
                 return;
             }
-            /**string messaged = "";
-            foreach (var item in toDownload)
-            {
-                messaged += ( item.target + " " + item.name + " ");
-            }
-            MessageBox.Show(messaged);**/
             int i = 0;
             List<Uri[]> torrentURLs = new List<Uri[]>();
             foreach (ContentClass addon in this.contentManager.getOutdatedAddons())
@@ -92,7 +92,11 @@ namespace FH2CommunityUpdater
                 Uri[] info = {addon.torrent, new Uri(
                     Path.Combine(this.parent.localAppDataFolder, addon.ID.ToString() + ".torrent"))};
                 torrentURLs.Add(info);
+                if (((addon.addonState == AddonState.UpdateAvailable)||(addon.addonState == AddonState.NotInstalled)) && (addon.hasChangelog))
+                    changeLogs.Add(addon.changeLog);
+
             }
+            amount = torrentURLs.Count;
             WebClient web = new WebClient();
             web.DownloadProgressChanged += web_DownloadProgressChanged;
             web.DownloadFileCompleted += new AsyncCompletedEventHandler(
@@ -108,6 +112,7 @@ namespace FH2CommunityUpdater
                     else
                         throw args.Error;
                 }
+                this.finishedDL += 100;
                 if (i >= torrentURLs.Count)
                 {
                     torrentDLFinished(torrentURLs);
@@ -134,10 +139,15 @@ namespace FH2CommunityUpdater
         void web_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
         {
             Console.WriteLine(e.ProgressPercentage);
+            int progress = 100*this.finishedDL + 100*e.ProgressPercentage;
+            setProgressBar(progress);
+            
         }
 
         private void torrentDLFinished( List<Uri[]> torrentURLs )
         {
+            if (!this.parent.updateInProgress)
+                return;
             setProgressBar(10000);
             int total = torrentURLs.Count;
             string info = "Downloading Torrent Files ( " + total.ToString() + " of " + total.ToString() + " completed. )";
@@ -147,16 +157,55 @@ namespace FH2CommunityUpdater
             {
                 torrentPaths.Add(entry[1].OriginalString);
             }
-            this.torrentUser.LoadTorrents(torrentPaths, this.contentManager.getObsoleteFiles(this));
+            if (this.parent.debugMode)
+                this.torrentUser.debugWindow.Show();
             this.torrentUser.StatusUpdate += torrentUser_StatusUpdate;
             this.torrentUser.TorrentDownloadCompleted += torrentUser_TorrentDownloadCompleted;
+            this.torrentUser.LoadTorrents(torrentPaths, this.contentManager.getObsoleteFiles(this));
             this.button1.Enabled = true;
         }
 
         void torrentUser_TorrentDownloadCompleted(object sender, TorrentStatusUpdateEventArgs e)
         {
             setTorrentInfo(e);
-            MessageBox.Show("Update completed.");
+            if (!this.parent.updateInProgress)
+                return;
+            try
+            {
+                this.Invoke((MethodInvoker)delegate
+                {
+                    if (this.changeLogs.Count == 0)
+                        MessageBox.Show(this, "Update Completed.", "Success");
+                    else
+                    {
+                        string message = "Update Completed. Would you like to see\nthe most recent changelogs?";
+                        string caption = "Success";
+                        MessageBoxButtons buttons = MessageBoxButtons.YesNo;
+                        DialogResult result;
+                        result = MessageBox.Show(message, caption, buttons);
+                        if (result == System.Windows.Forms.DialogResult.Yes)
+                            foreach (string changelog in this.changeLogs)
+                            {
+                                DirectoryInfo folder = new DirectoryInfo(Application.StartupPath);
+                                folder = folder.Parent.Parent;
+                                string adress = Path.Combine(folder.FullName, changelog);
+                                try
+                                {
+                                    System.Diagnostics.Process.Start("notepad.exe", adress);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Console.WriteLine(ex);
+                                }
+                            }
+
+                    }
+                });
+            }
+            catch (Exception)
+            {
+
+            }
             this.torrentUser.StatusUpdate -= torrentUser_StatusUpdate;
             this.torrentUser.TorrentDownloadCompleted -= torrentUser_TorrentDownloadCompleted;
             this.parent.updateInProgress = false;
@@ -166,7 +215,6 @@ namespace FH2CommunityUpdater
 
         private void disposeThis()
         {
-            //this.parent.quietSeed.Start(false);
             if (this.InvokeRequired)
             {
                 disposeThisCallback d = new disposeThisCallback(disposeThis);
@@ -187,14 +235,25 @@ namespace FH2CommunityUpdater
 
         private void setTorrentInfo(TorrentStatusUpdateEventArgs e)
         {
+            if (this.progressBar1.InvokeRequired)
+            {
+                setTorrentInfoCallback d = new setTorrentInfoCallback(setTorrentInfo);
+                this.Invoke(d, new object[] { e });
+            }
+            else
+            {
             setProgressBar((int)(e.Progress * 100));
             setInfoLabel(e.infoMessage);
             setTimeLabel(e.timeMessage);
+            }
         }
+        delegate void setTorrentInfoCallback(TorrentStatusUpdateEventArgs e);
 
         private void setTorrentDLInfo(int i, int total)
         {
             int progress = (int)(((double)i / (double)total)*10000);
+            if ((progress > this.progressBar1.Maximum) || (progress < this.progressBar1.Minimum))
+                return;
             setProgressBar(progress);
             string info = "Downloading Torrent Files ( " + i.ToString() + " of " + total.ToString() + " completed. )";
             setInfoLabel(info);
@@ -218,7 +277,15 @@ namespace FH2CommunityUpdater
             else
             {
                 this.progressBar1.Maximum = 10000;
-                this.progressBar1.Value = progress;
+                try
+                {
+                    if ((progress <= this.progressBar1.Maximum) || (progress >= this.progressBar1.Minimum))
+                        this.progressBar1.Value = progress;
+                }
+                catch
+                {
+
+                }
             }
         }
         delegate void setProgressBarCallback(int progress);
@@ -278,6 +345,7 @@ namespace FH2CommunityUpdater
             dresult = MessageBox.Show(message, caption, buttons);
             if (dresult == System.Windows.Forms.DialogResult.No)
                 return;
+            this.parent.updateInProgress = false;
             this.torrentUser.StopUpdate();
             this.disposeThis();
         }         

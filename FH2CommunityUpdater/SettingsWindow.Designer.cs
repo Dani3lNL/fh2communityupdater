@@ -58,7 +58,7 @@
             // checkBox2
             // 
             this.checkBox2.AutoSize = true;
-            this.checkBox2.Location = new System.Drawing.Point(26, 94);
+            this.checkBox2.Location = new System.Drawing.Point(26, 71);
             this.checkBox2.Name = "checkBox2";
             this.checkBox2.Size = new System.Drawing.Size(101, 17);
             this.checkBox2.TabIndex = 2;
@@ -70,7 +70,7 @@
             this.checkBox3.AutoSize = true;
             this.checkBox3.Checked = true;
             this.checkBox3.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBox3.Location = new System.Drawing.Point(12, 71);
+            this.checkBox3.Location = new System.Drawing.Point(12, 48);
             this.checkBox3.Name = "checkBox3";
             this.checkBox3.Size = new System.Drawing.Size(125, 17);
             this.checkBox3.TabIndex = 3;
@@ -83,21 +83,21 @@
             this.checkBox4.AutoSize = true;
             this.checkBox4.Checked = true;
             this.checkBox4.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.checkBox4.Location = new System.Drawing.Point(12, 117);
+            this.checkBox4.Location = new System.Drawing.Point(12, 94);
             this.checkBox4.Name = "checkBox4";
-            this.checkBox4.Size = new System.Drawing.Size(194, 17);
+            this.checkBox4.Size = new System.Drawing.Size(197, 17);
             this.checkBox4.TabIndex = 4;
-            this.checkBox4.Text = "Check for Updates at Program Start";
+            this.checkBox4.Text = "Check for Updates on Program Start";
             this.checkBox4.UseVisualStyleBackColor = true;
             // 
             // checkBox5
             // 
             this.checkBox5.AutoSize = true;
-            this.checkBox5.Location = new System.Drawing.Point(12, 48);
+            this.checkBox5.Location = new System.Drawing.Point(12, 117);
             this.checkBox5.Name = "checkBox5";
-            this.checkBox5.Size = new System.Drawing.Size(212, 17);
+            this.checkBox5.Size = new System.Drawing.Size(172, 17);
             this.checkBox5.TabIndex = 5;
-            this.checkBox5.Text = "Automatically Seed Completed Updates";
+            this.checkBox5.Text = "Start Seeding on Program Start";
             this.checkBox5.UseVisualStyleBackColor = true;
             // 
             // button1

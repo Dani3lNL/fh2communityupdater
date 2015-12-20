@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-using System.Linq;
 using System.Text;
 using System.IO;
 using System.Net;
@@ -81,7 +80,7 @@ namespace FH2CommunityUpdater
             this.label1.Text = "Sending error report.";
             this.progressBar1.Maximum = 100;
             string upName = DateTime.Now.ToString().Replace(" ", ".");
-            Uri folder = new Uri("ftp://fh2.hoststuff:c8ucUZuXa&-T@Hoststuff.forgottenhonor.com/CommunityUpdater/errorReports/" + upName + ".log");
+            Uri folder = new Uri("ftp://fh2.hoststuff:c8ucUZuXa&-T@files.forgottenhonr.com/CommunityUpdater/errorReports/" + upName + ".log");
             WebClient web = new WebClient();
             web.UploadProgressChanged += new UploadProgressChangedEventHandler(
             delegate(object o, UploadProgressChangedEventArgs args)

@@ -63,6 +63,7 @@
             this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
             this.richTextBox1 = new System.Windows.Forms.RichTextBox();
             this.label6 = new System.Windows.Forms.Label();
+            this.button4 = new System.Windows.Forms.Button();
             this.contextMenuStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.statusStrip1.SuspendLayout();
@@ -83,7 +84,7 @@
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(12, 211);
+            this.button1.Location = new System.Drawing.Point(12, 234);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(229, 30);
             this.button1.TabIndex = 2;
@@ -94,7 +95,7 @@
             // button2
             // 
             this.button2.Enabled = false;
-            this.button2.Location = new System.Drawing.Point(12, 139);
+            this.button2.Location = new System.Drawing.Point(12, 126);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(229, 30);
             this.button2.TabIndex = 3;
@@ -195,7 +196,7 @@
             // button3
             // 
             this.button3.Enabled = false;
-            this.button3.Location = new System.Drawing.Point(12, 175);
+            this.button3.Location = new System.Drawing.Point(12, 198);
             this.button3.Name = "button3";
             this.button3.Size = new System.Drawing.Size(229, 30);
             this.button3.TabIndex = 7;
@@ -271,7 +272,7 @@
             this.listBox1.FormattingEnabled = true;
             this.listBox1.Location = new System.Drawing.Point(12, 25);
             this.listBox1.Name = "listBox1";
-            this.listBox1.Size = new System.Drawing.Size(229, 108);
+            this.listBox1.Size = new System.Drawing.Size(229, 95);
             this.listBox1.TabIndex = 11;
             this.listBox1.SelectedValueChanged += new System.EventHandler(this.listBox1_SelectedValueChanged);
             // 
@@ -384,11 +385,23 @@
             this.label6.Text = "Loading Image";
             this.label6.Visible = false;
             // 
+            // button4
+            // 
+            this.button4.Enabled = false;
+            this.button4.Location = new System.Drawing.Point(12, 162);
+            this.button4.Name = "button4";
+            this.button4.Size = new System.Drawing.Size(229, 30);
+            this.button4.TabIndex = 14;
+            this.button4.Text = "Start Seeding";
+            this.button4.UseVisualStyleBackColor = true;
+            this.button4.Click += new System.EventHandler(this.button4_Click);
+            // 
             // MainWindow
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(530, 415);
+            this.Controls.Add(this.button4);
             this.Controls.Add(this.label6);
             this.Controls.Add(this.pictureBox1);
             this.Controls.Add(this.flowLayoutPanel1);
@@ -401,6 +414,7 @@
             this.Controls.Add(this.listBox1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.MaximizeBox = false;
             this.Name = "MainWindow";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Community Content Updater";
@@ -454,6 +468,7 @@
         private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel1;
         private System.Windows.Forms.RichTextBox richTextBox1;
         private System.Windows.Forms.Label label6;
+        private System.Windows.Forms.Button button4;
     }
 }
 

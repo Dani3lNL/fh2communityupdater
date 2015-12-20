@@ -13,5 +13,10 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <StartAction>Project</StartAction>
     <StartWorkingDirectory>C:\Program Files %28x86%29\EA GAMES\Battlefield 2\mods\fh2\CommunityUpdater</StartWorkingDirectory>
+    <StartArguments>+debug</StartArguments>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
+    <StartArguments>+dev</StartArguments>
+    <StartWorkingDirectory>C:\Program Files %28x86%29\EA GAMES\Battlefield 2\mods\fh2\CommunityUpdater</StartWorkingDirectory>
   </PropertyGroup>
 </Project>

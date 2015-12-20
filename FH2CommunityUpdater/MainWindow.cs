@@ -16,18 +16,28 @@ namespace FH2CommunityUpdater
 {
     public partial class MainWindow : Form
     {
+        #region fields
 
         internal ContentManager contentManager;
         internal ProtectionManager protectionManager;
         internal TorrentUser torrentUser;
+        internal List<string> indexList = new List<string>(new string[] { /**@"http://files.forgottenhonor.com/fh2/CommunityUpdater/addons.xml", @"http://www.die-german-crew.de/downloads/community_updater_files/addons.xml",**/ @"https://s3.eu-central-1.amazonaws.com/communityupdater/addons.xml" });
+        internal List<string> devIndexList = new List<string>(new string[] { /**@"http://files.forgottenhonor.com/fh2/CommunityUpdater/addonstest.xml",**/ @"https://s3.eu-central-1.amazonaws.com/communityupdater/addonstest.xml" });
+        internal string workingIndex = "";
         internal UpdateWindow updateWindow;
-        //internal QuietSeed quietSeed;
+        internal bool debugMode = false;
+        internal bool devIndex = false;
+        internal bool seedActive = false;
+        private bool updateAvailable = false;
 
         private ContentClass activeAddon;
 
         internal bool updateInProgress = false;
         internal string localAppDataFolder;
+        
+        #endregion
 
+        #region Preparation
         private void setLocalAppDataFolder()
         {
             var userLevel = ConfigurationUserLevel.PerUserRoamingAndLocal;
@@ -51,7 +61,7 @@ namespace FH2CommunityUpdater
             string pathEnd = Path.Combine("mods", Path.Combine("fh2", "CommunityUpdater"));
             if (!Application.StartupPath.EndsWith(pathEnd))
             {
-                string message2 = "FH2CommunityUpdater.exe should be run from\ninside the \\mods\\fh2\\CommunityUpdater folder.\nAddons will not be playable if the program is launched from the wrong location.\nAre you sure you want to start the program?";
+                string message2 = "FH2CommunityUpdater.exe might not be installed\ninside the \\mods\\fh2\\CommunityUpdater folder.\n\nAddons will not be playable if the program is\ninstalled in the wrong location.\n\nAre you sure you want to start the program?";
                 string caption2 = "Installation Folder";
                 MessageBoxButtons buttons2 = MessageBoxButtons.YesNo;
                 DialogResult result2;
@@ -136,15 +146,60 @@ namespace FH2CommunityUpdater
             }
             catch (Exception e)
             {
-                MessageBox.Show("Failed to migrate settings.\n\nError Message: " + e.Message);
+                //MessageBox.Show("Failed to migrate settings.\n\nError Message: " + e.Message);
             }
             Properties.Settings.Default.firstRun = false;
             Properties.Settings.Default.Save();
         }
+        #endregion
 
 
-        public MainWindow()
+        private bool confirmIndex()
         {
+            var indexList = this.indexList;
+            if (this.devIndex)
+                indexList = this.devIndexList;
+            foreach (string index in indexList)
+            {
+                try
+                {
+                    new XmlTextReader(index).Read();
+                    this.workingIndex = index;
+                    break;
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+            }
+            if (this.workingIndex == "") 
+            {
+                BackupLinkWindow backupLinkWindow = new BackupLinkWindow();
+                DialogResult result = backupLinkWindow.ShowDialog();
+                if (result == DialogResult.OK)
+                {
+                    indexList.Add(backupLinkWindow.textBox1.Text);
+                    return false;
+                }
+                else
+                    Environment.Exit(0);
+                    return false;
+            }
+            else
+                return true;
+        }
+
+        public MainWindow( string[] entryArgs )
+        {
+
+            foreach (string arg in entryArgs)
+            {
+                if (arg.Contains("+dev"))
+                    this.devIndex = true;
+                if (arg.Contains("+debug"))
+                    this.debugMode = true;
+            }
+
             protectionManager = new ProtectionManager(this);
 
             Application.ApplicationExit += Application_ApplicationExit;
@@ -166,34 +221,47 @@ namespace FH2CommunityUpdater
 
             this.torrentUser = new TorrentUser(this);
 
-            //this.quietSeed = new QuietSeed(this);
-
             this.torrentUser.StatusUpdate += torrentUser_StatusUpdate;
-            
+
+            while (this.confirmIndex() == false)
+                continue;
+
             BackgroundWorker infoWorker = new BackgroundWorker();
-            
+
             infoWorker.DoWork += new DoWorkEventHandler(
             delegate(object o, DoWorkEventArgs args)
             {
-                this.contentManager = new ContentManager(this, @"http://hoststuff.forgottenhonor.com/hoststuff/fh2/CommunityUpdater/addonstest.xml");
+                this.contentManager = new ContentManager(this, this.workingIndex);
             });
 
             infoWorker.RunWorkerCompleted += new RunWorkerCompletedEventHandler(
             delegate(object o, RunWorkerCompletedEventArgs args)
             {
                 if (args.Error != null)
-                    if (args.Error.GetType() == (typeof(WebException)))
-                    {
-                        MessageBox.Show("Could not connect to the server.\nA Please check your connections and/or try again later.\nProgram will shut down.");
-                        Environment.Exit(4);
-                    }
-                    else if (args.Error.GetType() == (typeof(XmlException)))
+                    if (args.Error.GetType() == (typeof(XmlException)))
                     {
                         MessageBox.Show("There was an error in the server index.\nIf this error persists, please leave a message on the forums.");
                         Environment.Exit(5);
                     }
                     else
                         throw args.Error;
+                afterRunWorker();
+            });
+            var some = unlimitedToolStripMenuItem.GetCurrentParent();
+            some.ItemClicked += some_ItemClicked;
+
+            infoWorker.RunWorkerAsync();
+        }
+
+        void afterRunWorker()
+        {
+            if (this.label2.InvokeRequired)
+            {
+                afterRunWorkerCallback d = new afterRunWorkerCallback(afterRunWorker);
+                this.Invoke(d, new object[] { });
+            }
+            else
+            {
                 this.label2.Visible = false;
                 this.label2.Enabled = false;
                 this.listBox1.Visible = true;
@@ -204,22 +272,24 @@ namespace FH2CommunityUpdater
                 {
                     this.listBox1.Items.Add(addon.name);
                 }
-                //this.updateWindow.contentManager = this.contentManager;
-                //this.quietSeed.contentManager = this.contentManager;
                 enableUpdates();
-                //this.quietSeed.QuietSeedInfo += quietSeed_QuietSeedInfo;
-                //this.quietSeed.Start(false);
-                if (Properties.Settings.Default.checkStart)
+                if ((Properties.Settings.Default.checkStart)&&(!Properties.Settings.Default.autoSeed))
                 {
                     this.button2_Click(null, new EventArgs());
                 }
-            });
-
-            var some = unlimitedToolStripMenuItem.GetCurrentParent();
-            some.ItemClicked +=some_ItemClicked;
-
-            infoWorker.RunWorkerAsync();
+                else if ((!Properties.Settings.Default.checkStart) && (Properties.Settings.Default.autoSeed))
+                {
+                    this.button4_Click(this, new EventArgs());
+                }
+                else if ((Properties.Settings.Default.checkStart) && (Properties.Settings.Default.autoSeed))
+                {
+                    this.button2_Click(null, new EventArgs());
+                    if (!this.updateAvailable)
+                        this.button4_Click(this, new EventArgs());
+                }
+            }
         }
+        delegate void afterRunWorkerCallback();
 
         void Application_ApplicationExit(object sender, EventArgs e)
         {
@@ -288,15 +358,6 @@ namespace FH2CommunityUpdater
             }
         }
 
-       /**void quietSeed_QuietSeedInfo(object sender, QuietSeedEventArgs e)
-        {
-            if (true)//(this.torrentUser.engineState == EngineState.Seeding)
-            {
-                this.notifyIcon1.Text = e.notifyMessage;
-                setStatusStrip(e.infoMessage);
-            }
-        }**/
-
         void torrentUser_StatusUpdate(object sender, TorrentStatusUpdateEventArgs e)
         {
             if (this.torrentUser.engineState == EngineState.Downloading)
@@ -311,11 +372,13 @@ namespace FH2CommunityUpdater
             {
                 this.button2.Enabled = true;
                 this.button3.Enabled = true;
+                this.button4.Enabled = true;
             }
             else
             {
                 this.button2.Enabled = false;
                 this.button3.Enabled = false;
+                this.button4.Enabled = false;
             }
         }
 
@@ -353,10 +416,7 @@ namespace FH2CommunityUpdater
 
         private void button3_Click(object sender, EventArgs e)
         {
-            //if (this.quietSeed != null)
-             //   this.quietSeed.Stop();
             this.updateInProgress = true;
-            setStatusStrip("Update in Progress...");
             this.updateWindow = new UpdateWindow(this);
             this.updateWindow.Disposed += new EventHandler(
             delegate(object o, EventArgs args)
@@ -364,17 +424,15 @@ namespace FH2CommunityUpdater
                 this.updateWindow = null;
             });
             DialogResult result = this.updateWindow.ShowDialog(this, true);
-            //this.setStatusStrip("Auto-Seed is not active.");
-            this.setStatusStrip("");
             foreach (ContentClass addon in contentManager.getSelectedAddons())
             {
+                setStatusStrip("");
                 if (result != DialogResult.Abort)
                 {
                     addon.addonState = AddonState.Installed;
                     addon.addVersion();
+                    this.contentManager.removeFromOutdated(addon);
                 }
-                else if (addon.addonState != AddonState.UpdateAvailable)
-                    addon.addonState = AddonState.NeedsRepair;
             }
             this.refreshList();
         }
@@ -487,14 +545,7 @@ namespace FH2CommunityUpdater
             if (Properties.Settings.Default.limitSeed)
                 this.torrentUser.setSeedRate(Properties.Settings.Default.seedRate*1024);
             else
-                this.torrentUser.setSeedRate(int.MaxValue);
-            /**if (autoSeedChanged)
-            {
-                if (Properties.Settings.Default.autoSeed)
-                    //this.quietSeed.Start(false);
-                else
-                    //this.quietSeed.Stop();
-            }**/
+                this.torrentUser.setSeedRate(1024^3);
             if (startUpChanged)
             {
                 RegistryKey rkApp = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run", true);
@@ -679,13 +730,14 @@ namespace FH2CommunityUpdater
 
         private void button2_Click(object sender, EventArgs e)
         {
-            SelfUpdate selfUpdate = new SelfUpdate(Application.ProductVersion);
+            SelfUpdate selfUpdate = new SelfUpdate(Application.ProductVersion, this.workingIndex);
             var list = this.contentManager.findOutdatedAddons();
             int count = list.Count;
             if (count == 0)
             {
                 if (sender != null)
                     MessageBox.Show("All installed addons are up to date!");
+                this.updateAvailable = false;
             }
             else if (count == 1)
             {
@@ -700,8 +752,7 @@ namespace FH2CommunityUpdater
                     button3_Click(this, new EventArgs());
                     this.contentManager.resetOnly();
                 }
-                else
-                    return;
+                this.updateAvailable = true;
             }
             else
             {
@@ -712,10 +763,116 @@ namespace FH2CommunityUpdater
                 result = MessageBox.Show(message, caption, buttons);
                 if (result == System.Windows.Forms.DialogResult.Yes)
                     button3_Click(this, new EventArgs());
-                else
-                    return;
+                this.updateAvailable = true;
             }
         }
+
+        internal void button4_dummy(object sender, EventArgs e)
+        {
+            if (this.button4.InvokeRequired)
+            {
+                button4_dummyHandler d = new button4_dummyHandler(button4_dummy);
+                this.Invoke(d, new object[] { sender, e });
+            }
+            else
+            {
+                this.button4_Click(sender, e);
+                MessageBox.Show("Hashing failed for one or more addons. Please use the repair function.");
+            }
+        }
+        internal delegate void button4_dummyHandler(object sender, EventArgs e);
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            if (this.seedActive)
+            {
+                this.button4.Text = "Stopping TorrentEngine";
+                this.button4.Enabled = false;
+                this.torrentUser.StoppedSeeding += torrentUser_StoppedSeeding;
+                this.torrentUser.StopSeeding(true);
+                this.torrentUser.StatusUpdate -= torrentUser_StatusUpdate;
+                this.toolStripStatusLabel1.Text = "Stopping TorrentEngine";
+                return;
+            }
+            var upToDate = contentManager.getUpToDateAddons();
+            if (upToDate.Count != 0)
+            {
+                List<string> torrentPaths = new List<string>();
+                foreach (ContentClass addon in upToDate)
+                {
+                    string info = Path.Combine(this.localAppDataFolder, addon.ID.ToString() + ".torrent");
+                    torrentPaths.Add(info);
+                }
+                if (this.debugMode)
+                    this.torrentUser.debugWindow.Show();
+                this.torrentUser.StatusUpdate += torrentUser_StatusUpdate;
+                this.torrentUser.SeedTorrents(torrentPaths);
+                this.button4.Text = "Stop Seeding";
+                this.seedActive = true;
+                this.button1.Enabled = false;
+                this.button2.Enabled = false;
+                this.button3.Enabled = false;
+                this.button5.Enabled = false;
+            }
+            else
+                MessageBox.Show("No completed Addons to seed.");
+
+        }
+
+        void torrentUser_StatusUpdate(TorrentUser sender, TorrentStatusUpdateEventArgs e)
+        {
+            statusStripUpdate(sender, e);
+        }
+
+        void statusStripUpdate(object sender, TorrentStatusUpdateEventArgs e)
+        {
+            if (this.statusStrip1.InvokeRequired)
+            {
+                statusStripHandler d = new statusStripHandler(statusStripUpdate);
+                this.statusStrip1.Invoke(d, new object[] { sender, e });
+            }
+            else
+            {
+                string text = e.notifyMessage;
+                if (this.updateInProgress)
+                    text = "Update in progress...";
+                else
+                {
+                    if (this.torrentUser.engineState == EngineState.Paused)
+                        text = "";
+                    else if ((e.Leeches == 0) || (text.Contains("Connections")))
+                        text = "Waiting for peers...";
+                    else if (e.Leeches == 1)
+                        text = text.Replace("eers", "eer");
+                }
+                this.toolStripStatusLabel1.Text = text;
+                this.notifyIcon1.Text = text;
+            }
+        }
+        delegate void statusStripHandler(object sender, TorrentStatusUpdateEventArgs e);
+
+
+
+        void torrentUser_StoppedSeeding(TorrentUser sender, EventArgs e)
+        {
+            if (this.button4.InvokeRequired)
+            {
+                makeButtonsAvailableCallback d = new makeButtonsAvailableCallback(torrentUser_StoppedSeeding);
+                this.Invoke(d, new object[] { sender, e });
+            }
+            else
+            {
+                this.button4.Text = "Start Seeding";
+                this.toolStripStatusLabel1.Text = "";
+                this.seedActive = false;
+                this.button1.Enabled = true;
+                this.button2.Enabled = true;
+                this.button3.Enabled = true;
+                this.button4.Enabled = true;
+                this.button5.Enabled = true;
+            }
+        }
+        delegate void makeButtonsAvailableCallback(TorrentUser sender, EventArgs e);
 
     }
 }

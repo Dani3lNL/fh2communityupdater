@@ -1,4 +1,5 @@
-﻿using System;
+﻿#region using
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Windows.Forms;
@@ -8,6 +9,10 @@ using System.IO;
 using MonoTorrent.Common;
 using MonoTorrent.Dht;
 using System.Net;
+using MonoTorrent.BEncoding;
+using MonoTorrent.Dht.Listeners;
+using Mono.Nat;
+#endregion
 
 
 namespace FH2CommunityUpdater
@@ -18,10 +23,13 @@ namespace FH2CommunityUpdater
         Downloading = 1,
         Seeding = -1,
         Paused = 0,
+        Waiting = 2,
     }
 
     class TorrentUser
     {
+        #region Fields
+
         internal EngineState engineState;
         internal MainWindow parent;
         public ClientEngine engine;
@@ -30,16 +38,20 @@ namespace FH2CommunityUpdater
         public long downloadSize;
         private long initialSize;
         public long totalSize;
-        //public DebugWindow debugWindow = new DebugWindow();
+        public DebugWindow debugWindow;
         
         private List<long> speedSample = new List<long>();
         private long lastTime = -10000;
         private string lastTimeMessage = "Estimating remaining Download Time...";
         private double lastProgress;
         private double initialProgress = -999999;
+        private int activeWebSeeds = 0;
 
         private MonoTorrent.Dht.Listeners.DhtListener listener;
+        private int waitCount = 0;
+        private List<string> torrentPaths;
 
+        #endregion
 
         public delegate void TorrentStatusUpdateHandler(TorrentUser sender, TorrentStatusUpdateEventArgs e);
         public event TorrentStatusUpdateHandler StatusUpdate;
@@ -47,11 +59,24 @@ namespace FH2CommunityUpdater
         public delegate void TorrentDownloadCompletedHandler(TorrentUser sender, TorrentStatusUpdateEventArgs e);
         public event TorrentDownloadCompletedHandler TorrentDownloadCompleted;
 
+        public delegate void SeedingStoppedHandler(TorrentUser sender, EventArgs e);
+        public event SeedingStoppedHandler StoppedSeeding;
+
+
         public TorrentUser(MainWindow parent)
         {
             this.parent = parent;
             this.engineState = EngineState.Paused;
+            if (parent.debugMode)
+                this.debugWindow = new DebugWindow();
+
+            // Hook into the events so you know when a router has been detected or has gone offline
+            NatUtility.DeviceFound += DeviceFound;
+            NatUtility.DeviceLost += DeviceLost;
+            // Start searching for upnp enabled routers
+            NatUtility.StartDiscovery();
             SetupEngine();
+            this.engine.StatsUpdate += this.engine_StatsUpdate;
         }   
 
         internal void setSeedRate(int newRate)
@@ -72,63 +97,57 @@ namespace FH2CommunityUpdater
             folder = folder.Parent.Parent;
             settings.SavePath = folder.FullName;
             if (Properties.Settings.Default.limitSeed)
-                settings.GlobalMaxUploadSpeed = Properties.Settings.Default.seedRate;
+                settings.GlobalMaxUploadSpeed = Properties.Settings.Default.seedRate*1024;
             this.engine = new ClientEngine(settings);
             // Tell the engine to listen at port 6969 for incoming connections
             engine.ChangeListenEndpoint(new IPEndPoint(IPAddress.Any, Properties.Settings.Default.listenPort));
-            //StartDht(this.engine, 6969);
-
-            this.engine.StatsUpdate += engine_StatsUpdate;
-
         }
 
+        #region UDP-NAT
+        void DeviceFound(object sender, DeviceEventArgs args)
+        {
+            // This is the upnp enabled router
+            INatDevice device = args.Device;
+
+            // Create a mapping to forward external port 3000 to local port 1500
+            device.CreatePortMap(new Mono.Nat.Mapping(Mono.Nat.Protocol.Tcp, Properties.Settings.Default.listenPort, Properties.Settings.Default.listenPort));
+        }
+
+        private void DeviceLost (object sender, DeviceEventArgs args)
+        {
+            INatDevice device = args.Device;
+
+            Console.WriteLine ("Device Lost");
+            Console.WriteLine ("Type: {0}", device.GetType().Name);
+        }
+        #endregion
+
+        #region DHT
         public void StartDht(ClientEngine engine, int port)
         {
-
-            // Send/receive DHT messages on the specified port
             IPEndPoint listenAddress = new IPEndPoint(IPAddress.Any, port);
-
-            // Create a listener which will process incoming/outgoing dht messages
-            this.listener = new MonoTorrent.Dht.Listeners.DhtListener(listenAddress);
-
-            // Create the dht engine
+            this.listener = new DhtListener(listenAddress);
             DhtEngine dht = new DhtEngine(this.listener);
-
-            // Connect the Dht engine to the MonoTorrent engine
             engine.RegisterDht(dht);
-
-            // Start listening for dht messages and activate the DHT engine
             listener.Start();
-
-            // If there are existing DHT nodes stored on disk, load them
-            // into the DHT engine so we can try and avoid a (very slow)
-            // full bootstrap
             byte[] nodes = null;
             string path = Path.Combine(this.parent.localAppDataFolder, "nodes");
             if (File.Exists(path))
                 nodes = File.ReadAllBytes(path);
-            dht.Start(nodes);
+            engine.DhtEngine.Start(nodes);
         }
         public void StopDht()
         {
             string path = Path.Combine(this.parent.localAppDataFolder, "nodes");
-            // Stop the listener and dht engine. This does not
-            // clear internal data so the DHT can be started again
-            // later without needing a full bootstrap.
+            File.WriteAllBytes(path, this.engine.DhtEngine.SaveNodes());
             this.listener.Stop();
             this.engine.DhtEngine.Stop();
-
-            // Save all known dht nodes to disk so they can be restored
-            // later. This is *highly* recommended as it makes startup
-            // much much faster.
-            File.WriteAllBytes(path, this.engine.DhtEngine.SaveNodes());
         }
+        #endregion
 
         internal void LoadTorrents(List<string> torrentPaths, List<FH2File> obsoleteFiles)
         {
-            SetupEngine();
-            //this.debugWindow.Show();
-            //StartDht(this.engine, 6969);
+            StartDht(this.engine, Properties.Settings.Default.listenPort);
             this.engineState = EngineState.Downloading;
             this.managers.Clear();
             this.torrents.Clear();
@@ -137,34 +156,53 @@ namespace FH2CommunityUpdater
             this.initialProgress = -999999;
             this.lastProgress = 0;
             this.lastTime = -10000;
+            this.activeWebSeeds = 0;
+
+            string fastResumeFile = Path.Combine(this.parent.localAppDataFolder, "fastresume.data");
+            BEncodedDictionary fastResume;
+            try
+            {
+                fastResume = BEncodedValue.Decode<BEncodedDictionary>(File.ReadAllBytes(fastResumeFile));
+            }
+            catch
+            {
+                fastResume = new BEncodedDictionary();
+            }
 
             foreach ( string filePath in  torrentPaths)
             {
                 Torrent torrent = null;
                 try { torrent = Torrent.Load(filePath); }
-                catch (Exception e) { Console.WriteLine(e); }//debugWindow.Debug(e.ToString()); } 
+                catch (Exception e) { Console.WriteLine(e); debug(e.ToString()); continue; } 
                 foreach (TorrentFile file in torrent.Files)
                 {
                     //file.Priority = Priority.DoNotDownload;
-                    file.Priority = Priority.Normal;
+                    //file.Priority = Priority.Normal;
                     this.totalSize += file.Length;
                     foreach (FH2File fh2File in obsoleteFiles)
                     {
-                        if ((fh2File.fullPath == Path.Combine(torrent.Name, file.FullPath)
-                            ||((fh2File.name.ToLower().Contains("ubuntu")&&(fh2File.name.ToLower().Contains(".iso"))))))
+                        if ((fh2File.fullPath == Path.Combine(torrent.Name, file.FullPath))
+                            ||(torrent.Name.ToLower().Contains("updater"))
+                            ||((fh2File.name.ToLower().Contains("ubuntu")&&(fh2File.name.ToLower().Contains(".iso")))))
                         {
-                            file.Priority = Priority.Normal;
+                            //file.Priority = Priority.Normal;
                             this.downloadSize += file.Length;
                             break;
                         }
                     }
                 }
                 this.torrents.Add(torrent);
-                TorrentSettings settings = new TorrentSettings();
-                TorrentManager manager = new TorrentManager(torrent, engine.Settings.SavePath, new TorrentSettings());
+                //TorrentSettings settings = new TorrentSettings(5, 50, 0, 0);
+                TorrentSettings settings = new TorrentSettings(5, 50, 0, this.engine.Settings.GlobalMaxUploadSpeed);
+                TorrentManager manager = new TorrentManager(torrent, engine.Settings.SavePath, settings);
+                if (fastResume.ContainsKey(torrent.InfoHash.ToHex()))
+                    manager.LoadFastResume(new FastResume((BEncodedDictionary)fastResume[torrent.InfoHash.ToHex()]));
                 this.managers.Add(manager);
+                manager.PeerConnected += manager_PeerConnected;
+                manager.PeerDisconnected += manager_PeerDisconnected;
                 this.engine.Register(manager);
-
+                manager.TorrentStateChanged += waitForFinish;
+                manager.TrackerManager.Announce();
                  // Disable rarest first and randomised picking - only allow priority based picking (i.e. selective downloading)
                 //PiecePicker picker = new StandardPicker();
                 //picker = new PriorityPicker(picker);
@@ -172,64 +210,194 @@ namespace FH2CommunityUpdater
                 try { manager.Start(); }
                 catch (Exception e) {
                     MessageBox.Show("Could not start the torrent.\nError Message:\n" + e.Message);
-                    Console.WriteLine(e); }//debugWindow.Debug(e.ToString()); }
+                    Console.WriteLine(e); debug(e.ToString()); }
             }
         }
+
+        void manager_PeerDisconnected(object sender, PeerConnectionEventArgs e)
+        {
+            if (e.PeerID.ClientApp.Client.ToString() == "WebSeed")
+                this.activeWebSeeds -= 1;
+        }
+
+        private void waitForFinish(object sender, TorrentStateChangedEventArgs e)
+        {
+            foreach (TorrentManager manager in this.managers)
+            {
+                if (!manager.Complete)
+                    return;
+            }
+            this.engineState = EngineState.Paused;
+            foreach (TorrentManager manager in this.managers)
+            {
+                    if (manager.State == TorrentState.Stopping)
+                        return;
+                    else if (manager.State == TorrentState.Stopped)
+                        manager.TorrentStateChanged -= waitForFinish;
+                    else
+                    {
+                        manager.Stop();
+                        return;
+                    }
+            }
+            TorrentStatusUpdateEventArgs args = new TorrentStatusUpdateEventArgs(0, 0, 0, 0, 100, "Update Completed", "Approximately 0 seconds remaining.");
+            foreach (TorrentManager manager in this.managers)
+            {
+                this.engine.Unregister(manager);
+            }
+            this.managers.Clear();
+            this.torrents.Clear();
+            this.activeWebSeeds = 0;
+            this.engineState = EngineState.Paused;
+            StopDht();
+            if (parent.debugMode)
+                this.refreshDebugWindow();
+            UpdateFinished(args);
+        }
+
+        internal void refreshDebugWindow(bool b = false)
+        {
+            if (this.debugWindow.InvokeRequired)
+            {
+                refreshDebugWindowHandler d = new refreshDebugWindowHandler(refreshDebugWindow);
+                this.debugWindow.Invoke(d, new object[] { b });
+            }
+            else
+            {
+                this.debugWindow.Hide();
+                this.debugWindow.listBox1.Items.Clear();
+                this.debugWindow.listBox1.Update();
+            }
+        }
+        internal delegate void refreshDebugWindowHandler(bool b);
 
         internal void StopUpdate()
         {
-            this.engineState = EngineState.Paused;
-            if (this.engine == null)
-                return;
-            this.engine.PauseAll();
+            this.engineState = EngineState.Waiting;
+            foreach (TorrentManager manager in this.managers)
+            {
+                manager.TorrentStateChanged += managerStopped;
+            }
             this.engine.StopAll();
+        }
+
+        private void managerStopped(object sender, TorrentStateChangedEventArgs args)
+        {
+            foreach (TorrentManager manager in this.managers)
+            {
+                if (this.engineState != EngineState.Waiting)
+                    return;
+                if (manager.State != TorrentState.Stopped)
+                    return;
+            }
+            if (this.engineState == EngineState.Waiting)
+                this.engineState = EngineState.Paused;
+            else
+                return;
+            foreach (TorrentManager manager in this.managers)
+            {
+               this.engine.Unregister(manager);
+            }
+            if (parent.debugMode)
+                this.refreshDebugWindow();
             this.managers.Clear();
             this.torrents.Clear();
-            this.engine.Dispose();
-            this.engine = null;
             this.lastTimeMessage = "";
         }
 
-        internal void StopSeeding()
+        internal void StopSeeding(bool human)
         {
             if (this.engine == null)
                 return;
             this.engineState = EngineState.Paused;
-            this.engine.StopAll();
-            //var torrents = this.engine.Torrents;
+            if ((this.StoppedSeeding != null) && (this.managers.Count == 0))
+                this.StoppedSeeding(this, new EventArgs());
             foreach (TorrentManager manager in this.managers)
             {
-                //this.engine.Unregister(manager);
+                manager.TorrentStateChanged += manager_TorrentStateChanged;
+                manager.Stop();
             }
-            this.managers.Clear();
-            this.torrents.Clear();
+            if (!human)
+                return;
+            if (parent.debugMode)
+                this.refreshDebugWindow();
+        }
+
+        void manager_TorrentStateChanged(object sender, TorrentStateChangedEventArgs e)
+        {
+            if (e.NewState == TorrentState.Stopped)
+            {
+                TorrentManager manager = (TorrentManager)sender;
+                this.engine.Unregister(manager);
+                manager.TorrentStateChanged -= manager_TorrentStateChanged;
+                if (this.managers.Contains(manager))
+                    this.managers.Remove(manager);
+                if (this.torrents.Contains(manager.Torrent))
+                    this.torrents.Remove(manager.Torrent);
+            }
+
+            if ((this.StoppedSeeding != null)&&(this.managers.Count == 0))
+                this.StoppedSeeding(this, new EventArgs());
         }
 
         internal void SeedTorrents(List<string> torrentPaths)
         {
             this.engineState = EngineState.Seeding;
-            //this.StartDht(this.engine, 6969);
+            this.StartDht(this.engine, Properties.Settings.Default.listenPort);
             this.managers.Clear();
             this.torrents.Clear();
+            this.torrentPaths = torrentPaths;
+
+            string fastResumeFile = Path.Combine(this.parent.localAppDataFolder, "fastresume.data");
+            BEncodedDictionary fastResume;
+            try
+            {
+                fastResume = BEncodedValue.Decode<BEncodedDictionary>(File.ReadAllBytes(fastResumeFile));
+            }
+            catch
+            {
+                fastResume = new BEncodedDictionary();
+            }
+
             foreach (string filePath in torrentPaths)
             {
                 Torrent torrent = null;
                 try { torrent = Torrent.Load(filePath); }
-                catch (Exception e) { Console.WriteLine(e); } //debugWindow.Debug(e.ToString()); }
-                foreach (TorrentFile file in torrent.Files)
-                {
-                    file.Priority = Priority.Normal;
-                }
+                catch (Exception e) { Console.WriteLine(e); debug(e.ToString()); continue; }
                 this.torrents.Add(torrent);
-                TorrentSettings settings = new TorrentSettings();
-                settings.InitialSeedingEnabled = true;
-
+                Console.WriteLine(Properties.Settings.Default.seedRate);
+                TorrentSettings settings = new TorrentSettings(10, 50, 0, this.engine.Settings.GlobalMaxUploadSpeed);
                 TorrentManager manager = new TorrentManager(torrent, engine.Settings.SavePath, settings);
+                if (fastResume.ContainsKey(torrent.InfoHash.ToHex()))
+                    manager.LoadFastResume(new FastResume((BEncodedDictionary)fastResume[torrent.InfoHash.ToHex()]));
                 this.managers.Add(manager);
                 this.engine.Register(manager);
+                manager.PeerConnected += manager_PeerConnected;
+                manager.TorrentStateChanged += checkIncomplete;
+                manager.TrackerManager.Announce();
                 manager.Start();
             }
-            this.engine.StartAll();
+            //this.engine.StartAll();
+        }
+
+        private void checkIncomplete(object sender, TorrentStateChangedEventArgs e)
+        {
+            if ((e.OldState == TorrentState.Hashing)&&(e.NewState == TorrentState.Downloading))
+            {
+                TorrentManager manager = (TorrentManager)sender;
+                if (!manager.Complete)
+                {
+                    this.parent.button4_dummy(this, new EventArgs());
+                }
+            }
+        }
+
+        void manager_PeerConnected(object sender, PeerConnectionEventArgs e)
+        {
+            if (e.PeerID.ClientApp.Client.ToString() == "WebSeed")
+                this.activeWebSeeds += 1;
+            Console.WriteLine("Peer added");
+            debug("Peer added. ");
         }
 
         void engine_StatsUpdate(object sender, StatsUpdateEventArgs e)
@@ -243,17 +411,32 @@ namespace FH2CommunityUpdater
             int nPeers = 0;
             double totalProgress = 0.0;
             string names = "Torrents: ";
-            bool done = true;
-            foreach ( TorrentManager manager in this.managers )
+            foreach (TorrentManager manager in this.managers)
             {
-                if (!manager.Complete)
-                    done = false;
                 totalProgress = totalProgress + manager.Progress;
-                seeds += manager.Peers.Seeds;
+                seeds += manager.Peers.Seeds + this.activeWebSeeds;
                 leeches += manager.Peers.Leechs;
                 nPeers += manager.InactivePeers;
                 names += manager.Torrent.Comment;
+                Console.WriteLine(manager.Monitor.DataBytesDownloaded);
+                if ((manager.State == TorrentState.Downloading)&&(manager.UseWebSeeding == false))
+                    manager.UseWebSeeding = true;
             }
+            if ((this.engineState == EngineState.Seeding) && (leeches == 0))
+            {
+                if (this.waitCount != 30)
+                    this.waitCount += 1;
+                else 
+                {
+                    this.waitCount = 0;
+                    this.debug("Announcing to Tracker.");
+                    foreach (TorrentManager manager in this.managers)
+                    {
+                        manager.TrackerManager.Announce();
+                    }
+                    return;
+                }
+            }                
             if ((this.engineState == EngineState.Downloading) && (seeds == 0))
                 seeds += leeches;
             string debugMessage = names + " Inactive Peers: " + nPeers.ToString()
@@ -261,8 +444,8 @@ namespace FH2CommunityUpdater
                 + " UL: " + uploadSpeed.ToString() + " DL: " + downloadSpeed.ToString() +
                 " Progress: " + (((totalProgress / (double)this.managers.Count) - 100 * (1 - (double)this.downloadSize / (double)this.totalSize)) * (double)this.totalSize / (double)this.downloadSize).ToString()
                 +" DLSize: " + this.downloadSize.ToString() + " TotalSize: " + this.totalSize.ToString();
-            //debugWindow.Debug(debugMessage);
             Console.WriteLine(debugMessage);
+            debug(debugMessage);
             if (this.engineState == EngineState.Seeding)
             {
                 string seedText;
@@ -322,8 +505,15 @@ namespace FH2CommunityUpdater
             }
             else
             {
-                if ((Math.Abs((this.lastTime - timeRemaining)) > 89) && (timeRemaining > 60))
-                    skipTime = true;
+                try
+                {
+                    if ((Math.Abs((this.lastTime - timeRemaining)) > 89) && (timeRemaining > 60))
+                        skipTime = true;
+                }
+                catch (OverflowException)
+                {
+                    return;
+                }
             }
             string plural = "";
             if (seeds > 1)
@@ -363,15 +553,20 @@ namespace FH2CommunityUpdater
                 timeMessage = this.lastTimeMessage;
 
             TorrentStatusUpdateEventArgs args = new TorrentStatusUpdateEventArgs((int)uploadSpeed, (int)downloadSpeed, leeches, seeds, progress, infoMessage, timeMessage);
-            if ((progress == 100)||(done))
-            {
-                this.engine.StopAll();
-                this.engineState = EngineState.Paused;
-                //StopDht();
-                UpdateFinished(args);
-            }
-            else if (this.engineState != EngineState.Paused)
+            if (this.engineState != EngineState.Paused)
                 UpdateStatus(args);
+        }
+
+        void TorrentUser_StoppedSeeding(TorrentUser sender, EventArgs e)
+        {
+            SeedTorrents(this.torrentPaths);
+            this.StoppedSeeding -= TorrentUser_StoppedSeeding;
+        }
+
+        private void debug(string message)
+        {
+            if ((this.parent.debugMode)&&(this.debugWindow != null))
+                this.debugWindow.Debug(message);
         }
 
         private void UpdateFinished(TorrentStatusUpdateEventArgs e)
@@ -436,6 +631,7 @@ namespace FH2CommunityUpdater
         }
     }
 
+    #region TorrentStatusUpdateEventArgs
     public class TorrentStatusUpdateEventArgs : EventArgs
     {
         public int UploadSpeed { get; private set; }
@@ -492,4 +688,5 @@ namespace FH2CommunityUpdater
         }
         
     }
+    #endregion
 }

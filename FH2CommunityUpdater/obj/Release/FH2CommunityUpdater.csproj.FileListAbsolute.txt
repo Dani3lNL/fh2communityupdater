@@ -16,3 +16,4 @@ C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2Comm
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.UpdateWindow.resources
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.csprojResolveAssemblyReference.cache
 C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.DebugWindow.resources
+C:\Users\Lukas\documents\visual studio 2013\Projects\FH2CommunityUpdater\FH2CommunityUpdater\obj\Release\FH2CommunityUpdater.BackupLinkWindow.resources

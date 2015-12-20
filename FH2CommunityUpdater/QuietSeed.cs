@@ -188,7 +188,7 @@ namespace FH2CommunityUpdater
                 this.contentManager.cancelAll(this.parent);
             this.engineState = EngineState.Paused;
             this.torrentUser.StatusUpdate -= torrentUser_StatusUpdate;
-            this.torrentUser.StopSeeding();
+            this.torrentUser.StopSeeding(true);
             QuietSeedInfo(this, new QuietSeedEventArgs("Auto-Seed is not active.", "Idle"));
         }
 

@@ -4,6 +4,7 @@ using System.Windows.Forms;
 using System.IO;
 using System.Text;
 using System.Net;
+using System.Threading;
 
 namespace FH2CommunityUpdater
 {
@@ -36,13 +37,23 @@ namespace FH2CommunityUpdater
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
-        static void Main()
+        static void Main( string[] args )
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+            AppDomain.CurrentDomain.UnhandledException += delegate(object sender, UnhandledExceptionEventArgs e)
+            {
+                if (dum == null)
+                    dum = new dummy((Exception)e.ExceptionObject);
+            };
+            Thread.GetDomain().UnhandledException += delegate(object sender, UnhandledExceptionEventArgs e)
+            {
+                if (dum == null)
+                    dum = new dummy((Exception)e.ExceptionObject);
+            };
             try
             {
-                Application.Run(new MainWindow());
+                Application.Run(new MainWindow(args));
             }
             catch (Exception e)
             {

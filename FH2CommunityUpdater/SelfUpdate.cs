@@ -15,13 +15,13 @@ namespace FH2CommunityUpdater
 
         SelfUpdateWindow window = new SelfUpdateWindow();
 
-        internal SelfUpdate(string localVersion)
+        internal SelfUpdate(string localVersion, string index)
         {
             string globalVersion = "";
             string mostRecentExe = "";
             try
             {
-                XmlTextReader reader = new XmlTextReader(@"http://hoststuff.forgottenhonor.com/hoststuff/fh2/CommunityUpdater/addons.xml");
+                XmlTextReader reader = new XmlTextReader(index);
                 while (reader.Read())
                 {
                     if ((reader.NodeType == XmlNodeType.Element) && (reader.Name == "FH2CommunityUpdater"))
@@ -63,7 +63,9 @@ namespace FH2CommunityUpdater
                 WebClient web = new WebClient();
                 web.DownloadFileCompleted += web_DownloadFileCompleted;
                 web.DownloadProgressChanged += web_DownloadProgressChanged;
-                web.DownloadFileAsync(new Uri(URL), "FH2CommunityUpdater.update");
+                var folder = Application.StartupPath;
+                string downloadPath = Path.Combine(folder, "FH2CommunityUpdater.update");
+                web.DownloadFileAsync(new Uri(URL), downloadPath);
                 Application.UseWaitCursor = false;
                 if (window.ShowDialog() == DialogResult.Cancel)
                 {

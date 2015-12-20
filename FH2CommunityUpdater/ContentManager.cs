@@ -9,16 +9,38 @@ using System.Windows.Forms;
 
 namespace FH2CommunityUpdater
 {
-
-    class ContentManagerException : Exception
+    class MD5Worker : BackgroundWorker
     {
-        internal object Sender { get; private set;}
-        internal string Description { get; private set; }
-
-        internal ContentManagerException(object sender, string message)
+        internal double totalProgress { get; private set; }
+        private List<ContentClass> toHash;
+        private double[] progressList;
+        private long[] sizes;
+        private long totalSize;
+        public MD5Worker(List<ContentClass> toHash)
         {
-            this.Sender = sender;
-            this.Description = message;
+            this.toHash = toHash;
+            this.progressList = new double[toHash.Count];
+            this.sizes = new long[toHash.Count];
+        }
+
+        internal void addSize(ContentClass sender)
+        {
+            int i = this.toHash.FindIndex(x => x == sender);
+            this.sizes[i] = sender.totalSize;
+            this.totalSize += sender.totalSize;
+        }
+
+        internal double updateProgress(ContentClass sender, double progress)
+        {
+            int i = this.toHash.FindIndex(x => x == sender);
+            this.progressList[i] = progress;
+            this.totalProgress = 0.0;
+            for (int k = 0; k < this.toHash.Count; k++)
+            {
+                this.totalProgress += this.progressList[k] * this.sizes[k];
+            }
+            this.totalProgress /= this.totalSize;
+            return this.totalProgress;
         }
     }
 
@@ -65,7 +87,7 @@ namespace FH2CommunityUpdater
         }
         internal void setNotBusy(object sender)
         {
-            if ((sender.GetType() != typeof(UpdateWindow)) && (sender.GetType() != typeof(QuietSeed)))
+            if (sender.GetType() != typeof(UpdateWindow))
                 throw new UnauthorizedAccessException();
             else
             {
@@ -118,12 +140,16 @@ namespace FH2CommunityUpdater
                 var torrent = new Uri(reader.GetAttribute("torrent"));
                 var pictureURL = new Uri(reader.GetAttribute("image"));
                 var password = reader.GetAttribute("password");
+                var changeLog = reader.GetAttribute("changelog");
+                var hasChangeLog = false;
+                if (changeLog != null)
+                    hasChangeLog = true;
                 var protection = false;
                 if (password != null)
                     protection = true;
                 return new ContentClass(this, "fh2", id, torrent, name,
                     version, description, contact, pictureURL, fileIndexURL,
-                    protection, password);
+                    protection, password, hasChangeLog, changeLog);
         }
 
         private void Initialize(string source)
@@ -237,6 +263,12 @@ namespace FH2CommunityUpdater
             }
         }
 
+        internal void removeFromOutdated(ContentClass addon)
+        {
+            if (this.outdatedAddons.Contains(addon))
+                this.outdatedAddons.Remove(addon);
+        }
+
         internal void SetAddonSelected(ContentClass addon, bool selected, bool ignoreSettings)
         {
             if ((selected) && (!this.selectedAddons.Contains(addon)))
@@ -346,6 +378,8 @@ namespace FH2CommunityUpdater
             foreach (ContentClass addon in this.selectedAddons)
             {
                 if (this.outdatedAddons.Contains(addon))
+                    selected.Remove(addon);
+                if (addon.addonState != AddonState.Installed)
                     selected.Remove(addon);
             }
             return selected;
@@ -531,13 +565,16 @@ namespace FH2CommunityUpdater
         internal bool protection { get; private set; }    
         internal string password { get; private set; }      
         internal long totalSize { get; private set; }
+        internal bool hasChangelog { get; private set; }
+        internal string changeLog { get; private set; }
         internal List<FH2File> fileIndex = new List<FH2File>();
         internal List<FH2File> localFiles = new List<FH2File>();
         internal List<FH2File> obsoleteFiles = new List<FH2File>();
 
         public ContentClass(ContentManager parent, string root, int id,
             Uri torrent, string name, string version, string desc,
-            Uri contact, Uri pictureURL, string fileIndexURL, bool protection, string password)
+            Uri contact, Uri pictureURL, string fileIndexURL, bool protection, string password,
+            bool hasChangelog, string changeLog)
         {
             this.parent = parent;
             this.rootFolder = root;
@@ -550,6 +587,8 @@ namespace FH2CommunityUpdater
             this.pictureURL = pictureURL;
             this.pictureType = Path.GetExtension(pictureURL.OriginalString);
             this.fileIndexURL = fileIndexURL;
+            this.hasChangelog = hasChangelog;
+            this.changeLog = changeLog;
 
             this.isActive = false;
             this.protection = protection;
@@ -748,6 +787,18 @@ namespace FH2CommunityUpdater
         }
 
     }
+
+    class ContentManagerException : Exception
+    {
+        internal object Sender { get; private set; }
+        internal string Description { get; private set; }
+
+        internal ContentManagerException(object sender, string message)
+        {
+            this.Sender = sender;
+            this.Description = message;
+        }
+    }
     
     public enum AddonState
     {
@@ -755,41 +806,6 @@ namespace FH2CommunityUpdater
         UpdateAvailable = 1,
         NeedsRepair = 2,
         NotInstalled = 3,
-    }
-
-    class MD5Worker : BackgroundWorker
-    {
-        internal double totalProgress { get; private set; }
-        private List<ContentClass> toHash;
-        private double[] progressList;
-        private long[] sizes;
-        private long totalSize;
-        public MD5Worker(List<ContentClass> toHash)
-        {
-            this.toHash = toHash;
-            this.progressList = new double[toHash.Count];
-            this.sizes = new long[toHash.Count];
-        }
-
-        internal void addSize( ContentClass sender )
-        {
-            int i = this.toHash.FindIndex( x => x == sender );
-            this.sizes[i] = sender.totalSize;
-            this.totalSize += sender.totalSize;
-        }
-
-        internal double updateProgress( ContentClass sender, double progress )
-        {
-            int i = this.toHash.FindIndex( x => x == sender );
-            this.progressList[i] = progress;
-            this.totalProgress = 0.0;
-            for (int k = 0; k < this.toHash.Count; k++)
-            {
-                this.totalProgress += this.progressList[k] * this.sizes[k];
-            }
-            this.totalProgress /= this.totalSize;
-            return this.totalProgress;
-        }
     }
 
     class MD5ProgressChangedEventArgs : EventArgs
