@@ -21,8 +21,8 @@ namespace FH2CommunityUpdater
         internal ContentManager contentManager;
         internal ProtectionManager protectionManager;
         internal TorrentUser torrentUser;
-        internal List<string> indexList = new List<string>(new string[] { /**@"http://files.forgottenhonor.com/fh2/CommunityUpdater/addons.xml", @"http://www.die-german-crew.de/downloads/community_updater_files/addons.xml",**/ @"https://s3.eu-central-1.amazonaws.com/communityupdater/addons.xml" });
-        internal List<string> devIndexList = new List<string>(new string[] { /**@"http://files.forgottenhonor.com/fh2/CommunityUpdater/addonstest.xml",**/ @"https://s3.eu-central-1.amazonaws.com/communityupdater/addonstest.xml" });
+        internal List<string> indexList = new List<string>(new string[] { @"http://files.forgottenhonor.com/fh2/CommunityUpdater/addons.xml", @"http://www.die-german-crew.de/downloads/community_updater_files/addons.xml", @"https://s3.eu-central-1.amazonaws.com/communityupdater/addons.xml" });
+        internal List<string> devIndexList = new List<string>(new string[] { @"http://files.forgottenhonor.com/fh2/CommunityUpdater/addonstest.xml", @"https://s3.eu-central-1.amazonaws.com/communityupdater/addonstest.xml" });
         internal string workingIndex = "";
         internal UpdateWindow updateWindow;
         internal bool debugMode = false;
