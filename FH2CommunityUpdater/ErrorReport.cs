@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Text;
 using System.IO;
 using System.Net;
+using System.Net.Mail;
 using System.Windows.Forms;
 
 namespace FH2CommunityUpdater
@@ -73,28 +74,44 @@ namespace FH2CommunityUpdater
 
         private void button1_Click(object sender, EventArgs e)
         {
-            this.progressBar1.Visible = true;
-            this.progressBar1.Enabled = true;
             this.button1.Enabled = false;
             this.button1.Visible = false;
-            this.label1.Text = "Sending error report.";
-            this.progressBar1.Maximum = 100;
-            string upName = DateTime.Now.ToString().Replace(" ", ".");
-            Uri folder = new Uri("ftp://fh2.hoststuff:c8ucUZuXa&-T@files.forgottenhonr.com/CommunityUpdater/errorReports/" + upName + ".log");
-            WebClient web = new WebClient();
-            web.UploadProgressChanged += new UploadProgressChangedEventHandler(
-            delegate(object o, UploadProgressChangedEventArgs args)
+            try
             {
-                this.progressBar1.Value = args.ProgressPercentage;
-            });
-            web.UploadFileCompleted += new UploadFileCompletedEventHandler(
-            delegate(object o, UploadFileCompletedEventArgs args)
-            {
+                this.label1.Text = "Sending error report.";
+                SmtpClient mailer = new SmtpClient("smtp.gmail.com");
+                mailer.Port = 587;
+                mailer.EnableSsl = true;
+                mailer.DeliveryMethod = SmtpDeliveryMethod.Network;
+                mailer.UseDefaultCredentials = false;
+                mailer.Credentials = new NetworkCredential("username", "password");
+                this.progressBar1.Maximum = 100;
+                string upName = DateTime.Now.ToString().Replace(" ", ".");
+                MailMessage mailMsg = new MailMessage(new MailAddress("address"), new MailAddress("error@cmp-gaming.com"));
+                mailMsg.Subject = "Error";
+                String message = "";
+                using (FileStream fs = File.Open(fileName, FileMode.Open))
+                {
+                    byte[] b = new byte[1024];
+                    UTF8Encoding temp = new UTF8Encoding(true);
+
+                    while (fs.Read(b, 0, b.Length) > 0)
+                    {
+                        message += temp.GetString(b);
+                    }
+                }
+                mailMsg.Body = message;
+                mailer.Send(mailMsg);
                 this.progressBar1.Value = 100;
                 this.label1.Text = "Report sent.";
                 this.button2.Text = "Close";
-            });
-            web.UploadFileAsync(folder, fileName);
+            }
+            catch (Exception ee)
+            {
+                this.progressBar1.Value = 100;
+                this.label1.Text = "Report sent failed.\n" + ee;
+                this.button2.Text = "Close";
+            }
         }
 
         private void button2_Click(object sender, EventArgs e)
