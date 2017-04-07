@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using System.Xml;
 using System.IO;
 using System.Net;
+using System.Net.Security;
 using System.Diagnostics;
 using System.Configuration;
 using Microsoft.Win32;
@@ -21,8 +22,8 @@ namespace FH2CommunityUpdater
         internal ContentManager contentManager;
         internal ProtectionManager protectionManager;
         internal TorrentUser torrentUser;
-        internal List<string> indexList = new List<string>(new string[] { @"http://files.forgottenhonor.com/fh2/CommunityUpdater/addons.xml", @"http://www.die-german-crew.de/downloads/community_updater_files/addons.xml", @"https://s3.eu-central-1.amazonaws.com/communityupdater/addons.xml" });
-        internal List<string> devIndexList = new List<string>(new string[] { @"http://files.forgottenhonor.com/fh2/CommunityUpdater/addonstest.xml", @"https://s3.eu-central-1.amazonaws.com/communityupdater/addonstest.xml" });
+        internal List<string> indexList = new List<string>(new string[] { @"http://fh2.cmp-gaming.com/updater/addons.xml", @"https://cmpcdn.ovh/updater/addons.xml" });
+        internal List<string> devIndexList = new List<string>(new string[] { @"http://fh2.cmp-gaming.com/updater/addonstest.xml", @"https://cmpcdn.ovh/updater/addonstest.xml" });
         internal string workingIndex = "";
         internal UpdateWindow updateWindow;
         internal bool debugMode = false;
@@ -152,7 +153,6 @@ namespace FH2CommunityUpdater
             Properties.Settings.Default.Save();
         }
         #endregion
-
 
         private bool confirmIndex()
         {
